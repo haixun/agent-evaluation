@@ -1,0 +1,195 @@
+Build a web app that orchestrates a 3-agent conversation + evaluation workflow and is **deployable on the Vercel free plan**.
+
+### Hard constraints
+
+* **Hosting:** Vercel free plan (no paid add-ons required).
+* **LLM provider:** **OpenAI only** (use env var `OPENAI_API_KEY`).
+* **Auth:** **none** for v1.
+* **Architecture:** Must work with Vercel’s serverless model (stateless functions, limited runtime). Avoid long-running single requests.
+
+---
+
+## Overview
+
+The app runs interview-style conversations:
+
+* **Agent A** conducts an interview (asks initial question + follow-ups until done).
+* **Agent B** (optional) simulates a user persona by answering Agent A using a provided profile file.
+* **Agent C** evaluates the transcript, focusing on Agent A’s follow-up question quality.
+
+The sample prompts that control Agents A, B, and C are provided in the current directory.
+
+Two modes:
+
+1. **Human Mode:** Human ↔ Agent A
+2. **Simulation Mode:** Agent A ↔ Agent B (auto-run)
+
+After completion, Agent C evaluates and the run is saved and viewable in history.
+
+---
+
+## Vercel-free persistence requirement (important)
+
+Since paid databases aren’t allowed, implement persistence using **Vercel Blob** (preferred) or an equivalent free storage approach that works on Vercel free (no paid add-on).
+
+### Data to persist per run
+
+Store a JSON record for each run containing:
+
+* `runId`
+* `mode`: `"human"` or `"simulation"`
+* `createdAt`, `endedAt`
+* `initialQuestion`
+* `agentAPromptVersionId`, `agentBPromptVersionId`, `agentCPromptVersionId`
+* `agentBProfileId` (if simulation)
+* `transcript`: ordered list of `{role: "agentA"|"agentB"|"user", content, timestamp}`
+* `evaluation`: JSON result from Agent C (after completion)
+
+Also persist the editable prompts and Agent B profiles:
+
+* Prompts: `agentA_prompt.json`, `agentB_prompt.json`, `agentC_prompt.json` (or versioned files)
+* Profiles: uploaded profile files saved in blob storage and selectable in UI
+
+---
+
+## Agents
+
+### Agent A (Interviewer)
+
+**Inputs**
+
+* Initial question (entered per run)
+* Agent A prompt (editable in UI; persisted)
+
+**Behavior**
+
+* Ask the initial question first.
+* Iteratively ask follow-up questions based on the transcript.
+* Must produce a **machine-detectable stop signal** when it’s done.
+
+**Stop format (required)**
+Have Agent A output strict JSON every turn:
+
+```json
+{ "message": "text shown to user", "done": false }
+```
+
+Final turn:
+
+```json
+{ "message": "wrap-up text", "done": true }
+```
+
+(If parsing fails, implement a fallback strategy and log an error.)
+
+### Agent B (Simulated persona, used in simulation mode)
+
+**Inputs**
+
+* Agent B prompt (editable; persisted)
+* Agent B profile file (JSON or YAML, uploaded/selected)
+
+**Behavior**
+
+* Answer Agent A’s questions as the persona described in the profile.
+* Do not reveal it is an AI unless instructed by the profile.
+
+### Agent C (Evaluator)
+
+**Inputs**
+
+* Full transcript
+* Evaluation prompt (editable; persisted)
+
+**Output**
+Return structured JSON:
+
+* `overallScore` (0–10 or 0–100)
+* `subscores` (relevance, coverage, clarity, efficiency, redundancy, progression, tone)
+* `strengths` (bullets)
+* `weaknesses` (bullets)
+* `actionableSuggestions` (bullets)
+* `stopTiming` (“too early” / “appropriate” / “too late”)
+
+---
+
+## UI pages
+
+1. **Home / Run setup**
+
+   * Choose mode: Human / Simulation
+   * Enter initial question
+   * For simulation: choose/upload Agent B profile
+   * Start run
+
+2. **Run screen**
+
+   * Human mode: chat UI (user ↔ Agent A)
+   * Simulation mode: show live transcript as A↔B runs
+
+3. **Prompt editor**
+
+   * View/edit/save Agent A / Agent B / Agent C prompts
+   * Optional: version prompts with timestamps/ids for reproducibility
+
+4. **Run history**
+
+   * List runs
+   * Run details page shows transcript and Agent C evaluation JSON
+
+No authentication gates needed.
+
+---
+
+## Backend orchestration (Vercel-safe)
+
+Implement API routes (Next.js App Router route handlers preferred):
+
+### Human mode
+
+* Each user message triggers:
+
+  * append user message to transcript
+  * call OpenAI for Agent A
+  * parse JSON `{message, done}`
+  * append Agent A message
+  * if done → call Agent C and store evaluation
+
+### Simulation mode
+
+Because serverless functions can’t run long loops reliably:
+
+* Implement a **step-based simulation**:
+
+  * Client calls `/api/sim/step?runId=...`
+  * Each step does:
+
+    1. call Agent A for next question
+    2. if `done=true` → finish + run Agent C
+    3. else call Agent B to answer
+    4. store both turns
+  * Client repeats until complete or max-turn limit hit
+* Enforce limits:
+
+  * `MAX_TURNS` (e.g., 20–40)
+  * token caps and timeouts
+
+---
+
+## Tech stack (required)
+
+* Next.js + TypeScript (App Router)
+* Minimal UI styling (Tailwind ok)
+* OpenAI SDK
+* Storage via Vercel Blob (or another free Vercel-compatible storage approach; no paid DB)
+
+---
+
+## Deliverables
+
+* Working Next.js repo ready to deploy to Vercel free plan
+* README:
+  * local dev steps
+  * required env vars (`OPENAI_API_KEY`, plus storage env vars)
+  * how storage is configured on Vercel
+
