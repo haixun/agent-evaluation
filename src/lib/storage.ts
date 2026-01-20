@@ -185,34 +185,55 @@ async function localDeleteProfile(id: string): Promise<void> {
 
 // ============ VERCEL BLOB STORAGE ============
 
+// Cache blob URLs to avoid list() latency issues
+const blobUrlCache = new Map<string, string>()
+
 async function blobSaveRun(run: Run): Promise<void> {
   const { put } = await import('@vercel/blob')
-  await put(`runs/${run.runId}.json`, JSON.stringify(run), {
+  const result = await put(`runs/${run.runId}.json`, JSON.stringify(run), {
     access: 'public',
     addRandomSuffix: false,
   })
+  // Cache the URL for faster retrieval
+  blobUrlCache.set(`runs/${run.runId}.json`, result.url)
 }
 
 async function blobGetRun(runId: string): Promise<Run | null> {
-  const { list } = await import('@vercel/blob')
+  const cacheKey = `runs/${runId}.json`
 
-  // Retry up to 3 times with delays to handle eventual consistency
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // Try cache first (fastest)
+  const cachedUrl = blobUrlCache.get(cacheKey)
+  if (cachedUrl) {
     try {
-      const { blobs } = await list({ prefix: `runs/${runId}.json` })
+      const response = await fetch(cachedUrl)
+      if (response.ok) {
+        return await response.json()
+      }
+    } catch {
+      // Cache URL might be stale, continue to list()
+    }
+  }
+
+  // Fall back to list() with retries
+  const { list } = await import('@vercel/blob')
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const { blobs } = await list({ prefix: cacheKey })
       if (blobs.length > 0) {
         const response = await fetch(blobs[0].url)
         if (response.ok) {
+          // Cache for future use
+          blobUrlCache.set(cacheKey, blobs[0].url)
           return await response.json()
         }
       }
-      // If not found and not last attempt, wait and retry
-      if (attempt < 2) {
-        await new Promise(resolve => setTimeout(resolve, 500))
+      // Exponential backoff: 300ms, 600ms, 1200ms, 2400ms
+      if (attempt < 4) {
+        await new Promise(resolve => setTimeout(resolve, 300 * Math.pow(2, attempt)))
       }
     } catch {
-      if (attempt < 2) {
-        await new Promise(resolve => setTimeout(resolve, 500))
+      if (attempt < 4) {
+        await new Promise(resolve => setTimeout(resolve, 300 * Math.pow(2, attempt)))
       }
     }
   }
