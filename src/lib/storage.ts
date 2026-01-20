@@ -185,8 +185,8 @@ async function localDeleteProfile(id: string): Promise<void> {
 
 // ============ VERCEL BLOB STORAGE ============
 
-// Cache blob URLs to avoid list() latency issues
-const blobUrlCache = new Map<string, string>()
+// Store the blob base URL for direct URL construction
+let blobBaseUrl: string | null = null
 
 async function blobSaveRun(run: Run): Promise<void> {
   const { put } = await import('@vercel/blob')
@@ -194,23 +194,26 @@ async function blobSaveRun(run: Run): Promise<void> {
     access: 'public',
     addRandomSuffix: false,
   })
-  // Cache the URL for faster retrieval
-  blobUrlCache.set(`runs/${run.runId}.json`, result.url)
+  // Extract base URL for direct access (e.g., https://xyz.public.blob.vercel-storage.com)
+  if (!blobBaseUrl) {
+    const url = new URL(result.url)
+    blobBaseUrl = `${url.protocol}//${url.host}`
+  }
 }
 
 async function blobGetRun(runId: string): Promise<Run | null> {
-  const cacheKey = `runs/${runId}.json`
+  const pathname = `runs/${runId}.json`
 
-  // Try cache first (fastest)
-  const cachedUrl = blobUrlCache.get(cacheKey)
-  if (cachedUrl) {
+  // Try direct URL first if we know the base URL
+  if (blobBaseUrl) {
     try {
-      const response = await fetch(cachedUrl)
+      const directUrl = `${blobBaseUrl}/${pathname}`
+      const response = await fetch(directUrl)
       if (response.ok) {
         return await response.json()
       }
     } catch {
-      // Cache URL might be stale, continue to list()
+      // Direct URL failed, fall back to list()
     }
   }
 
@@ -218,16 +221,19 @@ async function blobGetRun(runId: string): Promise<Run | null> {
   const { list } = await import('@vercel/blob')
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
-      const { blobs } = await list({ prefix: cacheKey })
+      const { blobs } = await list({ prefix: pathname })
       if (blobs.length > 0) {
+        // Extract base URL for future direct access
+        if (!blobBaseUrl) {
+          const url = new URL(blobs[0].url)
+          blobBaseUrl = `${url.protocol}//${url.host}`
+        }
         const response = await fetch(blobs[0].url)
         if (response.ok) {
-          // Cache for future use
-          blobUrlCache.set(cacheKey, blobs[0].url)
           return await response.json()
         }
       }
-      // Exponential backoff: 300ms, 600ms, 1200ms, 2400ms
+      // Exponential backoff
       if (attempt < 4) {
         await new Promise(resolve => setTimeout(resolve, 300 * Math.pow(2, attempt)))
       }
