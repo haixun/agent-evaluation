@@ -194,17 +194,29 @@ async function blobSaveRun(run: Run): Promise<void> {
 }
 
 async function blobGetRun(runId: string): Promise<Run | null> {
-  try {
-    const { list } = await import('@vercel/blob')
-    const { blobs } = await list({ prefix: `runs/${runId}.json` })
-    if (blobs.length === 0) return null
+  const { list } = await import('@vercel/blob')
 
-    const response = await fetch(blobs[0].url)
-    if (!response.ok) return null
-    return await response.json()
-  } catch {
-    return null
+  // Retry up to 3 times with delays to handle eventual consistency
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const { blobs } = await list({ prefix: `runs/${runId}.json` })
+      if (blobs.length > 0) {
+        const response = await fetch(blobs[0].url)
+        if (response.ok) {
+          return await response.json()
+        }
+      }
+      // If not found and not last attempt, wait and retry
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+    } catch {
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+    }
   }
+  return null
 }
 
 async function blobListRuns(): Promise<Run[]> {
