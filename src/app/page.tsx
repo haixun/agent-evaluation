@@ -71,6 +71,11 @@ export default function HomePage() {
   const [newProfileName, setNewProfileName] = useState('')
   const [newProfileContent, setNewProfileContent] = useState('')
 
+  // Edit profile form state
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [editProfileName, setEditProfileName] = useState('')
+  const [editProfileContent, setEditProfileContent] = useState('')
+
   useEffect(() => {
     fetchProfiles()
   }, [])
@@ -124,6 +129,61 @@ export default function HomePage() {
       }
     } catch (err) {
       setError('Failed to create profile')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function startEditProfile() {
+    const profile = profiles.find(p => p.id === selectedProfileId)
+    if (profile) {
+      setEditProfileName(profile.name)
+      setEditProfileContent(profile.content)
+      setEditingProfile(true)
+      setShowNewProfile(false)
+    }
+  }
+
+  function cancelEditProfile() {
+    setEditingProfile(false)
+    setEditProfileName('')
+    setEditProfileContent('')
+  }
+
+  async function handleUpdateProfile() {
+    if (!editProfileName.trim() || !editProfileContent.trim()) {
+      setError('Profile name and content are required')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/profiles', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedProfileId,
+          name: editProfileName,
+          content: editProfileContent,
+        }),
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        // Update the profile in the list
+        setProfiles(profiles.map(p =>
+          p.id === selectedProfileId ? data.data : p
+        ))
+        setEditingProfile(false)
+        setEditProfileName('')
+        setEditProfileContent('')
+      } else {
+        setError(data.error || 'Failed to update profile')
+      }
+    } catch (err) {
+      setError('Failed to update profile')
     } finally {
       setLoading(false)
     }
@@ -409,6 +469,38 @@ export default function HomePage() {
                       {loading ? 'Creating...' : 'Create Profile'}
                     </button>
                   </div>
+                ) : editingProfile ? (
+                  <div className="space-y-4">
+                    <input
+                      type="text"
+                      value={editProfileName}
+                      onChange={(e) => setEditProfileName(e.target.value)}
+                      className="input"
+                      placeholder="Profile name"
+                    />
+                    <textarea
+                      value={editProfileContent}
+                      onChange={(e) => setEditProfileContent(e.target.value)}
+                      className="input min-h-[200px] font-mono text-sm"
+                      placeholder="Profile content..."
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleUpdateProfile}
+                        disabled={loading}
+                        className="btn-primary"
+                      >
+                        {loading ? 'Saving...' : 'Save Changes'}
+                      </button>
+                      <button
+                        onClick={cancelEditProfile}
+                        disabled={loading}
+                        className="btn-secondary"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <>
                     <select
@@ -430,10 +522,19 @@ export default function HomePage() {
                     {/* Profile Preview */}
                     {selectedProfileId && profiles.find(p => p.id === selectedProfileId) && (
                       <div className="mt-4 rounded-lg overflow-hidden border border-purple-200">
-                        <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2">
+                        <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2 flex items-center justify-between">
                           <span className="text-sm font-medium text-white">
                             {profiles.find(p => p.id === selectedProfileId)?.name}
                           </span>
+                          <button
+                            onClick={startEditProfile}
+                            className="text-white/80 hover:text-white transition-colors"
+                            title="Edit profile"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
                         </div>
                         <pre className="p-4 text-sm text-slate-700 bg-purple-50 overflow-auto max-h-64 whitespace-pre-wrap font-mono">
                           {profiles.find(p => p.id === selectedProfileId)?.content}

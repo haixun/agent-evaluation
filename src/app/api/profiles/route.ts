@@ -79,6 +79,71 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PUT /api/profiles - Update a profile
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id, name, content } = body
+
+    if (!id || typeof id !== 'string') {
+      return NextResponse.json(
+        { success: false, error: 'Profile ID is required' },
+        { status: 400 }
+      )
+    }
+
+    if (id === 'default') {
+      return NextResponse.json(
+        { success: false, error: 'Cannot edit default profile' },
+        { status: 400 }
+      )
+    }
+
+    if (!name || typeof name !== 'string') {
+      return NextResponse.json(
+        { success: false, error: 'Name is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!content || typeof content !== 'string') {
+      return NextResponse.json(
+        { success: false, error: 'Content is required' },
+        { status: 400 }
+      )
+    }
+
+    // Get existing profile to preserve createdAt
+    const existingProfile = await getProfile(id)
+    if (!existingProfile) {
+      return NextResponse.json(
+        { success: false, error: 'Profile not found' },
+        { status: 404 }
+      )
+    }
+
+    const profile: Profile = {
+      id,
+      name,
+      content,
+      createdAt: existingProfile.createdAt,
+    }
+
+    await saveProfile(profile)
+
+    return NextResponse.json({
+      success: true,
+      data: profile,
+    })
+  } catch (error) {
+    console.error('Error updating profile:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to update profile' },
+      { status: 500 }
+    )
+  }
+}
+
 // DELETE /api/profiles?id=xxx
 export async function DELETE(request: NextRequest) {
   try {
