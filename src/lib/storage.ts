@@ -203,6 +203,7 @@ async function blobSaveRun(run: Run): Promise<void> {
 
 async function blobGetRun(runId: string): Promise<Run | null> {
   const pathname = `runs/${runId}.json`
+  const startTime = Date.now()
 
   // Try direct URL first if we know the base URL
   if (blobBaseUrl) {
@@ -210,6 +211,7 @@ async function blobGetRun(runId: string): Promise<Run | null> {
       const directUrl = `${blobBaseUrl}/${pathname}`
       const response = await fetch(directUrl)
       if (response.ok) {
+        console.log(`[Blob] getRun ${runId}: direct URL success in ${Date.now() - startTime}ms`)
         return await response.json()
       }
     } catch {
@@ -219,7 +221,7 @@ async function blobGetRun(runId: string): Promise<Run | null> {
 
   // Fall back to list() with retries
   const { list } = await import('@vercel/blob')
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const { blobs } = await list({ prefix: pathname })
       if (blobs.length > 0) {
@@ -230,19 +232,22 @@ async function blobGetRun(runId: string): Promise<Run | null> {
         }
         const response = await fetch(blobs[0].url)
         if (response.ok) {
+          console.log(`[Blob] getRun ${runId}: list() success on attempt ${attempt + 1} in ${Date.now() - startTime}ms`)
           return await response.json()
         }
       }
-      // Exponential backoff
-      if (attempt < 4) {
-        await new Promise(resolve => setTimeout(resolve, 300 * Math.pow(2, attempt)))
+      // Shorter delays: 200ms, 400ms
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)))
       }
-    } catch {
-      if (attempt < 4) {
-        await new Promise(resolve => setTimeout(resolve, 300 * Math.pow(2, attempt)))
+    } catch (e) {
+      console.log(`[Blob] getRun ${runId}: attempt ${attempt + 1} failed:`, e)
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)))
       }
     }
   }
+  console.log(`[Blob] getRun ${runId}: FAILED after ${Date.now() - startTime}ms`)
   return null
 }
 
