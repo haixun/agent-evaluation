@@ -2,8 +2,9 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import type { Run, Prompt, Profile } from '@/types'
 
-// Check if we have Vercel Blob configured
-const USE_BLOB = !!process.env.BLOB_READ_WRITE_TOKEN
+// Check storage backend priority: Redis > Blob > Local
+const USE_REDIS = !!process.env.KV_REST_API_URL || !!process.env.UPSTASH_REDIS_REST_URL
+const USE_BLOB = !USE_REDIS && !!process.env.BLOB_READ_WRITE_TOKEN
 
 // Local storage directory for development
 const DATA_DIR = path.join(process.cwd(), '.data')
@@ -423,9 +424,142 @@ async function blobDeleteProfile(id: string): Promise<void> {
   }
 }
 
+// ============ UPSTASH REDIS STORAGE ============
+
+import { Redis } from '@upstash/redis'
+
+// Lazy initialize Redis client
+let redisClient: Redis | null = null
+
+function getRedis(): Redis {
+  if (!redisClient) {
+    redisClient = new Redis({
+      url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
+    })
+  }
+  return redisClient
+}
+
+async function redisSaveRun(run: Run): Promise<void> {
+  const redis = getRedis()
+  await redis.set(`run:${run.runId}`, JSON.stringify(run))
+  // Also add to sorted set for listing (score = timestamp)
+  await redis.zadd('runs', { score: new Date(run.createdAt).getTime(), member: run.runId })
+}
+
+async function redisGetRun(runId: string): Promise<Run | null> {
+  const redis = getRedis()
+  const data = await redis.get<string>(`run:${runId}`)
+  if (!data) return null
+  return typeof data === 'string' ? JSON.parse(data) : data
+}
+
+async function redisListRuns(): Promise<Run[]> {
+  const redis = getRedis()
+  // Get all run IDs sorted by timestamp (newest first)
+  const runIds = await redis.zrange('runs', 0, -1, { rev: true })
+  if (!runIds || runIds.length === 0) return []
+
+  const runs: Run[] = []
+  for (const runId of runIds) {
+    const run = await redisGetRun(runId as string)
+    if (run) runs.push(run)
+  }
+  return runs
+}
+
+async function redisDeleteRun(runId: string): Promise<void> {
+  const redis = getRedis()
+  await redis.del(`run:${runId}`)
+  await redis.zrem('runs', runId)
+}
+
+async function redisSavePrompt(prompt: Prompt): Promise<void> {
+  const redis = getRedis()
+  await redis.set(`prompt:${prompt.agentType}:${prompt.id}`, JSON.stringify(prompt))
+  await redis.sadd(`prompts:${prompt.agentType}`, prompt.id)
+}
+
+async function redisGetPrompt(agentType: string, id: string): Promise<Prompt | null> {
+  const redis = getRedis()
+  const data = await redis.get<string>(`prompt:${agentType}:${id}`)
+  if (!data) return null
+  return typeof data === 'string' ? JSON.parse(data) : data
+}
+
+async function redisGetActivePrompt(agentType: string): Promise<Prompt | null> {
+  const prompts = await redisListPrompts(agentType)
+  return prompts.find((p) => p.isActive) || null
+}
+
+async function redisListPrompts(agentType: string): Promise<Prompt[]> {
+  const redis = getRedis()
+  const promptIds = await redis.smembers(`prompts:${agentType}`)
+  if (!promptIds || promptIds.length === 0) return []
+
+  const prompts: Prompt[] = []
+  for (const id of promptIds) {
+    const prompt = await redisGetPrompt(agentType, id as string)
+    if (prompt) prompts.push(prompt)
+  }
+  return prompts.sort((a, b) =>
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )
+}
+
+async function redisSetActivePrompt(agentType: string, id: string): Promise<void> {
+  const prompts = await redisListPrompts(agentType)
+  for (const prompt of prompts) {
+    if (prompt.id === id) {
+      prompt.isActive = true
+    } else if (prompt.isActive) {
+      prompt.isActive = false
+    }
+    await redisSavePrompt(prompt)
+  }
+}
+
+async function redisSaveProfile(profile: Profile): Promise<void> {
+  const redis = getRedis()
+  await redis.set(`profile:${profile.id}`, JSON.stringify(profile))
+  await redis.sadd('profiles', profile.id)
+}
+
+async function redisGetProfile(id: string): Promise<Profile | null> {
+  const redis = getRedis()
+  const data = await redis.get<string>(`profile:${id}`)
+  if (!data) return null
+  return typeof data === 'string' ? JSON.parse(data) : data
+}
+
+async function redisListProfiles(): Promise<Profile[]> {
+  const redis = getRedis()
+  const profileIds = await redis.smembers('profiles')
+  if (!profileIds || profileIds.length === 0) return []
+
+  const profiles: Profile[] = []
+  for (const id of profileIds) {
+    const profile = await redisGetProfile(id as string)
+    if (profile) profiles.push(profile)
+  }
+  return profiles.sort((a, b) =>
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )
+}
+
+async function redisDeleteProfile(id: string): Promise<void> {
+  const redis = getRedis()
+  await redis.del(`profile:${id}`)
+  await redis.srem('profiles', id)
+}
+
 // ============ EXPORTED FUNCTIONS ============
 
 export async function saveRun(run: Run): Promise<void> {
+  if (USE_REDIS) {
+    return redisSaveRun(run)
+  }
   if (USE_BLOB) {
     return blobSaveRun(run)
   }
@@ -433,6 +567,9 @@ export async function saveRun(run: Run): Promise<void> {
 }
 
 export async function getRun(runId: string): Promise<Run | null> {
+  if (USE_REDIS) {
+    return redisGetRun(runId)
+  }
   if (USE_BLOB) {
     return blobGetRun(runId)
   }
@@ -440,6 +577,9 @@ export async function getRun(runId: string): Promise<Run | null> {
 }
 
 export async function listRuns(): Promise<Run[]> {
+  if (USE_REDIS) {
+    return redisListRuns()
+  }
   if (USE_BLOB) {
     return blobListRuns()
   }
@@ -447,6 +587,9 @@ export async function listRuns(): Promise<Run[]> {
 }
 
 export async function deleteRun(runId: string): Promise<void> {
+  if (USE_REDIS) {
+    return redisDeleteRun(runId)
+  }
   if (USE_BLOB) {
     return blobDeleteRun(runId)
   }
@@ -454,6 +597,9 @@ export async function deleteRun(runId: string): Promise<void> {
 }
 
 export async function savePrompt(prompt: Prompt): Promise<void> {
+  if (USE_REDIS) {
+    return redisSavePrompt(prompt)
+  }
   if (USE_BLOB) {
     return blobSavePrompt(prompt)
   }
@@ -461,6 +607,9 @@ export async function savePrompt(prompt: Prompt): Promise<void> {
 }
 
 export async function getPrompt(agentType: string, id: string): Promise<Prompt | null> {
+  if (USE_REDIS) {
+    return redisGetPrompt(agentType, id)
+  }
   if (USE_BLOB) {
     return blobGetPrompt(agentType, id)
   }
@@ -468,6 +617,9 @@ export async function getPrompt(agentType: string, id: string): Promise<Prompt |
 }
 
 export async function getActivePrompt(agentType: string): Promise<Prompt | null> {
+  if (USE_REDIS) {
+    return redisGetActivePrompt(agentType)
+  }
   if (USE_BLOB) {
     return blobGetActivePrompt(agentType)
   }
@@ -475,6 +627,9 @@ export async function getActivePrompt(agentType: string): Promise<Prompt | null>
 }
 
 export async function listPrompts(agentType: string): Promise<Prompt[]> {
+  if (USE_REDIS) {
+    return redisListPrompts(agentType)
+  }
   if (USE_BLOB) {
     return blobListPrompts(agentType)
   }
@@ -482,6 +637,9 @@ export async function listPrompts(agentType: string): Promise<Prompt[]> {
 }
 
 export async function setActivePrompt(agentType: string, id: string): Promise<void> {
+  if (USE_REDIS) {
+    return redisSetActivePrompt(agentType, id)
+  }
   if (USE_BLOB) {
     return blobSetActivePrompt(agentType, id)
   }
@@ -489,6 +647,9 @@ export async function setActivePrompt(agentType: string, id: string): Promise<vo
 }
 
 export async function saveProfile(profile: Profile): Promise<void> {
+  if (USE_REDIS) {
+    return redisSaveProfile(profile)
+  }
   if (USE_BLOB) {
     return blobSaveProfile(profile)
   }
@@ -496,6 +657,9 @@ export async function saveProfile(profile: Profile): Promise<void> {
 }
 
 export async function getProfile(id: string): Promise<Profile | null> {
+  if (USE_REDIS) {
+    return redisGetProfile(id)
+  }
   if (USE_BLOB) {
     return blobGetProfile(id)
   }
@@ -503,6 +667,9 @@ export async function getProfile(id: string): Promise<Profile | null> {
 }
 
 export async function listProfiles(): Promise<Profile[]> {
+  if (USE_REDIS) {
+    return redisListProfiles()
+  }
   if (USE_BLOB) {
     return blobListProfiles()
   }
@@ -510,6 +677,9 @@ export async function listProfiles(): Promise<Profile[]> {
 }
 
 export async function deleteProfile(id: string): Promise<void> {
+  if (USE_REDIS) {
+    return redisDeleteProfile(id)
+  }
   if (USE_BLOB) {
     return blobDeleteProfile(id)
   }
