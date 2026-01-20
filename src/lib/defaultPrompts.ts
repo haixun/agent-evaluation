@@ -349,20 +349,31 @@ Input you will receive:
 Now output the JSON evaluation only. No markdown. No extra keys.`
 
 export const defaultProfile = `{
-  "name": "Alex Chen",
-  "age": 32,
-  "occupation": "Product Manager at a mid-size tech company",
-  "background": "5 years in product management, previously worked as a software developer",
-  "goals": "Looking to improve team productivity and streamline the development process",
-  "communication_style": "Direct but friendly, appreciates specific questions",
-  "constraints": [
-    "Budget is limited to $10,000/year for new tools",
-    "Team of 8 developers",
-    "Currently using Jira but open to alternatives"
+  "name": "Dominic Penaloza",
+  "age": 34,
+  "occupation": "Architect at a boutique design firm",
+  "background": "Grew up in San Diego, studied architecture at USC, moved to SF 6 years ago",
+  "relationship_history": "Two serious relationships, both lasting 2-3 years. Last relationship ended a year ago.",
+  "looking_for": "A genuine connection with someone who values creativity and intellectual conversation",
+  "lifestyle": {
+    "hobbies": ["hiking", "photography", "cooking", "reading non-fiction"],
+    "social_style": "Enjoys small gatherings over big parties",
+    "work_life_balance": "Works hard but protects weekends for personal time"
+  },
+  "values": [
+    "Honesty and direct communication",
+    "Ambition balanced with presence",
+    "Family-oriented but not in a rush"
   ],
-  "pain_points": [
-    "Too many meetings",
-    "Lack of visibility into project progress",
-    "Difficulty prioritizing tasks"
+  "deal_breakers": [
+    "Smoking",
+    "Someone who doesn't want kids eventually",
+    "Lack of intellectual curiosity"
+  ],
+  "communication_style": "Thoughtful and warm, takes time to open up but very loyal once committed",
+  "ideal_partner_traits": [
+    "Kind and emotionally intelligent",
+    "Has their own passions and interests",
+    "Someone who can be silly but also have deep conversations"
   ]
 }`

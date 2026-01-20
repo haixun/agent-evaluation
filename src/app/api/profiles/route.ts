@@ -9,19 +9,33 @@ export async function GET() {
   try {
     const profiles = await listProfiles()
 
-    // If no profiles exist, return a default one
-    if (profiles.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: [
-          {
-            id: 'default',
-            name: 'Alex Chen (Default)',
-            content: defaultProfile,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      })
+    // Check if default profile exists in storage
+    const hasDefault = profiles.some(p => p.id === 'default')
+
+    // If no profiles exist or default is missing, add the default
+    if (profiles.length === 0 || !hasDefault) {
+      const defaultProfileData: Profile = {
+        id: 'default',
+        name: 'Dominic Penaloza (Default)',
+        content: defaultProfile,
+        createdAt: new Date().toISOString(),
+      }
+
+      // Save default to storage so it can be edited
+      await saveProfile(defaultProfileData)
+
+      if (profiles.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: [defaultProfileData],
+        })
+      } else {
+        // Add default to the list
+        return NextResponse.json({
+          success: true,
+          data: [defaultProfileData, ...profiles],
+        })
+      }
     }
 
     return NextResponse.json({
@@ -88,13 +102,6 @@ export async function PUT(request: NextRequest) {
     if (!id || typeof id !== 'string') {
       return NextResponse.json(
         { success: false, error: 'Profile ID is required' },
-        { status: 400 }
-      )
-    }
-
-    if (id === 'default') {
-      return NextResponse.json(
-        { success: false, error: 'Cannot edit default profile' },
         { status: 400 }
       )
     }
