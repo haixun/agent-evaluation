@@ -1,7 +1,9 @@
 import openai from './openai'
 import type { AgentAResponse, Evaluation, TranscriptEntry } from '@/types'
 
-const MODEL = 'gpt-4o'
+const MODEL_AGENT_A = 'gpt-4o'
+const MODEL_AGENT_B = 'gpt-4o-mini'  // Faster model for simulated responses
+const MODEL_AGENT_C = 'gpt-4o'
 
 function formatTranscript(transcript: TranscriptEntry[]): string {
   if (transcript.length === 0) {
@@ -31,7 +33,7 @@ export async function callAgentA(
     .replace('{conversation_history}', transcriptText)
 
   const completion = await openai.chat.completions.create({
-    model: MODEL,
+    model: MODEL_AGENT_A,
     messages: [
       { role: 'user', content: prompt },
     ],
@@ -103,7 +105,7 @@ QUESTION:
 ${lastQuestion}`
 
   const completion = await openai.chat.completions.create({
-    model: MODEL,
+    model: MODEL_AGENT_B,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
@@ -131,7 +133,7 @@ TRANSCRIPT:
 ${transcriptText}`
 
   const completion = await openai.chat.completions.create({
-    model: MODEL,
+    model: MODEL_AGENT_C,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
