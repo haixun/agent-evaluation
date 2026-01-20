@@ -56,7 +56,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Run History</h1>
 
       {error && (
@@ -76,26 +76,26 @@ export default function HistoryPage() {
           </Link>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
+        <div className="bg-white rounded-lg shadow border border-gray-200 overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 table-fixed">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-40 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Mode
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Initial Question
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-16 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Score
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-28 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -103,11 +103,11 @@ export default function HistoryPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {runs.map((run) => (
                 <tr key={run.runId} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="w-40 px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(run.createdAt).toLocaleDateString()}{' '}
-                    {new Date(run.createdAt).toLocaleTimeString()}
+                    {new Date(run.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="w-24 px-4 py-4 whitespace-nowrap">
                     <span
                       className={`px-2 py-1 text-xs rounded ${
                         run.mode === 'human'
@@ -115,13 +115,13 @@ export default function HistoryPage() {
                           : 'bg-purple-100 text-purple-700'
                       }`}
                     >
-                      {run.mode === 'human' ? 'Human' : 'Simulation'}
+                      {run.mode === 'human' ? 'Human' : 'Sim'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                  <td className="px-4 py-4 text-sm text-gray-900 truncate" title={run.initialQuestion}>
                     {run.initialQuestion}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="w-24 px-4 py-4 whitespace-nowrap">
                     <span
                       className={`px-2 py-1 text-xs rounded ${
                         run.status === 'completed'
@@ -134,7 +134,7 @@ export default function HistoryPage() {
                       {run.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="w-16 px-4 py-4 whitespace-nowrap text-sm">
                     {run.evaluation ? (
                       <span className="font-medium text-gray-900">
                         {run.evaluation.overallScore}
@@ -143,10 +143,10 @@ export default function HistoryPage() {
                       <span className="text-gray-400">-</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                  <td className="w-28 px-4 py-4 whitespace-nowrap text-right text-sm">
                     <Link
                       href={`/runs/${run.runId}`}
-                      className="text-blue-600 hover:text-blue-700 mr-4"
+                      className="text-blue-600 hover:text-blue-700 mr-3"
                     >
                       View
                     </Link>
