@@ -9,6 +9,7 @@ export interface TranscriptEntry {
   role: TranscriptRole
   content: string
   timestamp: string
+  endFlag?: 0 | 1  // Only for agentA messages: 0 = continue, 1 = done
 }
 
 // Agent A response format
@@ -57,6 +58,7 @@ export interface Run {
   createdAt: string
   endedAt?: string
   initialQuestion: string
+  taskTopic?: string // Topic for the conversation
   agentAPromptVersionId: string
   agentBPromptVersionId?: string
   agentCPromptVersionId: string
@@ -117,6 +119,7 @@ export interface SimStepResponse {
 export interface CreateRunRequest {
   mode: RunMode
   initialQuestion: string
+  taskTopic?: string // Topic for the conversation
   profileId?: string
   maxTurns?: number // Max turns for simulation mode
 }

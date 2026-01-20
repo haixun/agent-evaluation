@@ -59,6 +59,7 @@ export default function HomePage() {
   const [questionMode, setQuestionMode] = useState<'sample' | 'custom'>('sample')
   const [selectedSampleQuestion, setSelectedSampleQuestion] = useState('')
   const [profilesLoading, setProfilesLoading] = useState(true)
+  const [taskTopic, setTaskTopic] = useState('')
 
   // New profile form state
   const [showNewProfile, setShowNewProfile] = useState(false)
@@ -153,6 +154,7 @@ export default function HomePage() {
         body: JSON.stringify({
           mode,
           initialQuestion: question,
+          taskTopic: taskTopic.trim() || undefined,
           profileId: mode === 'simulation' ? selectedProfileId : undefined,
           maxTurns: mode === 'simulation' ? maxTurns : undefined,
         }),
@@ -282,6 +284,23 @@ export default function HomePage() {
               placeholder="Enter the initial question Agent A should ask..."
             />
           )}
+        </div>
+
+        {/* Task Topic */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Task Topic <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={taskTopic}
+            onChange={(e) => setTaskTopic(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            placeholder="e.g., ideal partner preferences, deal-breakers, communication style..."
+          />
+          <p className="mt-1 text-sm text-gray-500">
+            Specify the topic for Agent A to focus on during the interview. If left empty, the initial question will be used as the topic.
+          </p>
         </div>
 
         {/* Profile Selection (Simulation Mode) */}

@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateRunRequest = await request.json()
-    const { mode, initialQuestion, profileId, maxTurns } = body
+    const { mode, initialQuestion, taskTopic, profileId, maxTurns } = body
 
     if (!mode || !['human', 'simulation'].includes(mode)) {
       return NextResponse.json(
@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       status: 'in_progress',
       createdAt: new Date().toISOString(),
       initialQuestion,
+      taskTopic,
       agentAPromptVersionId: agentAPrompt?.id || 'default',
       agentBPromptVersionId: mode === 'simulation' ? (agentBPrompt?.id || 'default') : undefined,
       agentCPromptVersionId: agentCPrompt?.id || 'default',

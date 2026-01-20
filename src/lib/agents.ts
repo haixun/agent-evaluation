@@ -4,12 +4,15 @@ import type { AgentAResponse, Evaluation, TranscriptEntry } from '@/types'
 const MODEL = 'gpt-4o'
 
 function formatTranscript(transcript: TranscriptEntry[]): string {
+  if (transcript.length === 0) {
+    return '(No conversation yet)'
+  }
   return transcript
     .map((entry) => {
-      const role = entry.role === 'agentA' ? 'Agent A' : entry.role === 'agentB' ? 'Agent B' : 'User'
+      const role = entry.role === 'agentA' ? 'Matchmaker' : entry.role === 'agentB' ? 'User' : 'User'
       return `${role}: ${entry.content}`
     })
-    .join('\n\n')
+    .join('\n')
 }
 
 // ============ AGENT A (Interviewer) ============
@@ -17,21 +20,20 @@ function formatTranscript(transcript: TranscriptEntry[]): string {
 export async function callAgentA(
   systemPrompt: string,
   initialQuestion: string,
-  transcript: TranscriptEntry[]
+  transcript: TranscriptEntry[],
+  taskTopic?: string
 ): Promise<AgentAResponse> {
   const transcriptText = formatTranscript(transcript)
 
-  const userContent = `INITIAL_QUESTION:
-${initialQuestion}
-
-TRANSCRIPT:
-${transcriptText || '(No conversation yet)'}`
+  // Replace placeholders in the prompt
+  let prompt = systemPrompt
+    .replace('{task_topic}', taskTopic || initialQuestion)
+    .replace('{conversation_history}', transcriptText)
 
   const completion = await openai.chat.completions.create({
     model: MODEL,
     messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userContent },
+      { role: 'user', content: prompt },
     ],
     temperature: 0.7,
     max_tokens: 1000,
@@ -39,10 +41,24 @@ ${transcriptText || '(No conversation yet)'}`
 
   const responseText = completion.choices[0]?.message?.content || ''
 
-  // Try to parse JSON response
+  // Parse the new format: "0:message" or "1:message"
+  const trimmedResponse = responseText.trim()
+
+  // Check for END_FLAG format (0: or 1: at the start)
+  const flagMatch = trimmedResponse.match(/^([01]):?\s*([\s\S]*)/)
+
+  if (flagMatch) {
+    const done = flagMatch[1] === '1'
+    const message = flagMatch[2].trim()
+    return {
+      message,
+      done,
+    }
+  }
+
+  // Try JSON format as fallback (for backwards compatibility)
   try {
-    // Remove any markdown code fences if present
-    const cleanedText = responseText
+    const cleanedText = trimmedResponse
       .replace(/```json\s*/gi, '')
       .replace(/```\s*/g, '')
       .trim()
@@ -56,11 +72,11 @@ ${transcriptText || '(No conversation yet)'}`
       }
     }
   } catch (e) {
-    console.error('Failed to parse Agent A response as JSON:', e)
-    console.error('Raw response:', responseText)
+    // Not JSON, continue to fallback
   }
 
   // Fallback: treat as plain message, not done
+  console.log('Agent A response (no flag detected):', responseText)
   return {
     message: responseText,
     done: false,

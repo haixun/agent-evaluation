@@ -82,7 +82,8 @@ export async function POST(request: NextRequest) {
     const agentAResponse = await callAgentA(
       agentAPromptContent,
       run.initialQuestion,
-      run.transcript
+      run.transcript,
+      run.taskTopic
     )
 
     // Add Agent A message to transcript
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
       role: 'agentA',
       content: agentAResponse.message,
       timestamp: new Date().toISOString(),
+      endFlag: agentAResponse.done ? 1 : 0,
     }
     run.transcript.push(agentAEntry)
     run.turnCount++

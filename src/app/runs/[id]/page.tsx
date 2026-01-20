@@ -234,6 +234,11 @@ export default function RunPage() {
           <p className="text-sm text-gray-500 mt-1">
             Initial question: {run.initialQuestion}
           </p>
+          {run.taskTopic && (
+            <p className="text-sm text-gray-500 mt-1">
+              Topic: {run.taskTopic}
+            </p>
+          )}
           {run.mode === 'simulation' && (
             <p className="text-sm text-gray-500 mt-1">
               Turns: {run.turnCount} / {run.maxTurns || 30}
@@ -325,12 +330,25 @@ export default function RunPage() {
                       : 'bg-gray-100 text-gray-900'
                   }`}
                 >
-                  <div className="text-xs font-medium mb-1 opacity-70">
-                    {entry.role === 'agentA'
-                      ? 'Agent A (Interviewer)'
-                      : entry.role === 'agentB'
-                      ? 'Agent B (Persona)'
-                      : 'You'}
+                  <div className="flex items-center justify-between text-xs font-medium mb-1 opacity-70">
+                    <span>
+                      {entry.role === 'agentA'
+                        ? 'Agent A (Interviewer)'
+                        : entry.role === 'agentB'
+                        ? 'Agent B (Persona)'
+                        : 'You'}
+                    </span>
+                    {entry.role === 'agentA' && entry.endFlag !== undefined && (
+                      <span
+                        className={`ml-2 px-1.5 py-0.5 rounded text-xs font-mono ${
+                          entry.endFlag === 1
+                            ? 'bg-green-200 text-green-800'
+                            : 'bg-gray-200 text-gray-600'
+                        }`}
+                      >
+                        END_FLAG: {entry.endFlag}
+                      </span>
+                    )}
                   </div>
                   <div className="whitespace-pre-wrap">{entry.content}</div>
                 </div>
