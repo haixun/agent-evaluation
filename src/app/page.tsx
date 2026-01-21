@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Profile, RunMode } from '@/types'
+import type { Profile, RunMode, TranscriptEntry } from '@/types'
 
 const SAMPLE_QUESTIONS = [
   {
@@ -75,6 +75,13 @@ export default function HomePage() {
   const [editingProfile, setEditingProfile] = useState(false)
   const [editProfileName, setEditProfileName] = useState('')
   const [editProfileContent, setEditProfileContent] = useState('')
+
+  // Upload mode state
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [uploadedTranscript, setUploadedTranscript] = useState<TranscriptEntry[] | null>(null)
+  const [uploadInitialQuestion, setUploadInitialQuestion] = useState('')
+  const [uploadTaskTopic, setUploadTaskTopic] = useState('')
+  const [fileError, setFileError] = useState('')
 
   useEffect(() => {
     fetchProfiles()
@@ -197,7 +204,154 @@ export default function HomePage() {
     return initialQuestion.trim()
   }
 
+  // Parse transcript from text input
+  function parseTranscript(text: string): TranscriptEntry[] | null {
+    try {
+      // Try parsing as JSON first
+      const parsed = JSON.parse(text)
+      if (Array.isArray(parsed)) {
+        return parsed
+      }
+      return null
+    } catch {
+      // Parse as plain text format:
+      // Agent A: message
+      // User: message
+      const lines = text.split('\n')
+      const entries: TranscriptEntry[] = []
+      let currentRole: 'agentA' | 'user' | null = null
+      let currentContent = ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+
+        const agentAMatch = trimmed.match(/^(Agent A|AgentA|Interviewer|A):\s*(.*)$/i)
+        const userMatch = trimmed.match(/^(User|Human|Customer|Client|B):\s*(.*)$/i)
+
+        if (agentAMatch) {
+          // Save previous entry
+          if (currentRole && currentContent) {
+            entries.push({
+              role: currentRole,
+              content: currentContent.trim(),
+              timestamp: new Date().toISOString(),
+            })
+          }
+          currentRole = 'agentA'
+          currentContent = agentAMatch[2]
+        } else if (userMatch) {
+          // Save previous entry
+          if (currentRole && currentContent) {
+            entries.push({
+              role: currentRole,
+              content: currentContent.trim(),
+              timestamp: new Date().toISOString(),
+            })
+          }
+          currentRole = 'user'
+          currentContent = userMatch[2]
+        } else if (currentRole) {
+          // Continue current message
+          currentContent += '\n' + trimmed
+        }
+      }
+
+      // Save last entry
+      if (currentRole && currentContent) {
+        entries.push({
+          role: currentRole,
+          content: currentContent.trim(),
+          timestamp: new Date().toISOString(),
+        })
+      }
+
+      return entries.length > 0 ? entries : null
+    }
+  }
+
+  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setFileError('')
+    setUploadedFile(file)
+    setUploadedTranscript(null)
+
+    // Check file type
+    const validTypes = ['.json', '.txt', '.csv']
+    const fileExt = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
+    if (!validTypes.includes(fileExt)) {
+      setFileError('Please upload a .json, .txt, or .csv file')
+      setUploadedFile(null)
+      return
+    }
+
+    try {
+      const text = await file.text()
+      const transcript = parseTranscript(text)
+
+      if (!transcript || transcript.length === 0) {
+        setFileError('Could not parse transcript from file. Use JSON format or "Agent A: message" / "User: message" format.')
+        setUploadedFile(null)
+        return
+      }
+
+      setUploadedTranscript(transcript)
+    } catch (err) {
+      setFileError('Failed to read file')
+      setUploadedFile(null)
+    }
+  }
+
+  function clearUploadedFile() {
+    setUploadedFile(null)
+    setUploadedTranscript(null)
+    setFileError('')
+  }
+
   async function handleStartRun() {
+    // Handle upload mode separately
+    if (mode === 'upload') {
+      if (!uploadInitialQuestion.trim()) {
+        setError('Please enter the initial question that started the conversation')
+        return
+      }
+
+      if (!uploadedTranscript || uploadedTranscript.length === 0) {
+        setError('Please upload a transcript file to evaluate')
+        return
+      }
+
+      setLoading(true)
+      setError('')
+
+      try {
+        const res = await fetch('/api/runs/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            initialQuestion: uploadInitialQuestion.trim(),
+            taskTopic: uploadTaskTopic.trim() || undefined,
+            transcript: uploadedTranscript,
+          }),
+        })
+
+        const data = await res.json()
+        if (data.success) {
+          router.push(`/runs/${data.data.runId}`)
+        } else {
+          setError(data.error || 'Failed to upload and evaluate transcript')
+        }
+      } catch (err) {
+        setError('Failed to upload and evaluate transcript')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    // Human and Simulation modes
     const question = getQuestion()
     if (!question) {
       setError(questionMode === 'sample' ? 'Please select a sample question' : 'Please enter a question')
@@ -269,7 +423,7 @@ export default function HomePage() {
               </h2>
             </div>
             <div className="card-body">
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-3 gap-4">
                 <label
                   className={`relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all ${
                     mode === 'human'
@@ -321,108 +475,293 @@ export default function HomePage() {
                   </div>
                   <p className="text-sm text-slate-600">Automated persona responds based on profile</p>
                 </label>
+
+                <label
+                  className={`relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    mode === 'upload'
+                      ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
+                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="mode"
+                    value="upload"
+                    checked={mode === 'upload'}
+                    onChange={() => setMode('upload')}
+                    className="sr-only"
+                  />
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${mode === 'upload' ? 'bg-emerald-600' : 'bg-slate-200'}`}>
+                      <svg className={`w-5 h-5 ${mode === 'upload' ? 'text-white' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                    </div>
+                    <span className="font-semibold text-slate-900">Upload Mode</span>
+                  </div>
+                  <p className="text-sm text-slate-600">Evaluate an existing transcript from a real conversation</p>
+                </label>
               </div>
             </div>
           </div>
 
-          {/* Initial Question */}
-          <div className="card">
-            <div className="card-header">
-              <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Initial Question
-              </h2>
-            </div>
-            <div className="card-body space-y-4">
-              {/* Question Mode Toggle */}
-              <div className="flex gap-2 p-1 bg-slate-100 rounded-lg w-fit">
-                <button
-                  onClick={() => setQuestionMode('sample')}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                    questionMode === 'sample'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Sample Questions
-                </button>
-                <button
-                  onClick={() => setQuestionMode('custom')}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                    questionMode === 'custom'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Custom Question
-                </button>
+          {/* Upload Mode UI */}
+          {mode === 'upload' && (
+            <>
+              {/* Initial Question for Upload */}
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Initial Question
+                  </h2>
+                </div>
+                <div className="card-body">
+                  <input
+                    type="text"
+                    value={uploadInitialQuestion}
+                    onChange={(e) => setUploadInitialQuestion(e.target.value)}
+                    className="input"
+                    placeholder="What was the initial question that started the conversation?"
+                  />
+                  <p className="input-hint mt-2">
+                    Enter the first question Agent A asked to start the conversation.
+                  </p>
+                </div>
               </div>
 
-              {/* Sample Question Selector */}
-              {questionMode === 'sample' && (
-                <div className="space-y-3">
-                  <select
-                    value={selectedSampleQuestion}
-                    onChange={(e) => setSelectedSampleQuestion(e.target.value)}
+              {/* Task Topic for Upload */}
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    Task Topic
+                    <span className="text-slate-400 font-normal text-sm">(optional)</span>
+                  </h2>
+                </div>
+                <div className="card-body">
+                  <input
+                    type="text"
+                    value={uploadTaskTopic}
+                    onChange={(e) => setUploadTaskTopic(e.target.value)}
                     className="input"
-                  >
-                    <option value="">Select a question...</option>
-                    {SAMPLE_QUESTIONS.map((category) => (
-                      <optgroup key={category.category} label={`${category.icon} ${category.category}`}>
-                        {category.questions.map((q, idx) => (
-                          <option key={idx} value={q}>
-                            {q}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                  {selectedSampleQuestion && (
-                    <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
-                      <p className="text-slate-700 italic">&ldquo;{selectedSampleQuestion}&rdquo;</p>
+                    placeholder="e.g., ideal partner preferences, deal-breakers..."
+                  />
+                </div>
+              </div>
+
+              {/* Transcript Upload */}
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Transcript File
+                  </h2>
+                </div>
+                <div className="card-body">
+                  {!uploadedFile ? (
+                    <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-emerald-400 transition-all">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <svg className="w-10 h-10 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <p className="mb-2 text-sm text-slate-600">
+                          <span className="font-semibold">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-slate-500">.json, .txt, or .csv files</p>
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".json,.txt,.csv"
+                        onChange={handleFileUpload}
+                      />
+                    </label>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* File Info */}
+                      <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                            <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="font-medium text-slate-900">{uploadedFile.name}</div>
+                            <div className="text-sm text-slate-500">
+                              {(uploadedFile.size / 1024).toFixed(1)} KB
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={clearUploadedFile}
+                          className="text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* Parse Result */}
+                      {uploadedTranscript && (
+                        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                          <div className="flex items-center gap-2 mb-3">
+                            <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="font-medium text-slate-900">
+                              {uploadedTranscript.length} messages parsed
+                            </span>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto space-y-2">
+                            {uploadedTranscript.slice(0, 5).map((entry, idx) => (
+                              <div key={idx} className="text-sm">
+                                <span className={`font-medium ${entry.role === 'agentA' ? 'text-indigo-600' : 'text-purple-600'}`}>
+                                  {entry.role === 'agentA' ? 'Agent A' : 'User'}:
+                                </span>
+                                <span className="text-slate-600 ml-2">
+                                  {entry.content.length > 80 ? entry.content.slice(0, 80) + '...' : entry.content}
+                                </span>
+                              </div>
+                            ))}
+                            {uploadedTranscript.length > 5 && (
+                              <div className="text-sm text-slate-400 italic">
+                                ... and {uploadedTranscript.length - 5} more messages
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
+
+                  {fileError && (
+                    <div className="mt-3 text-sm text-red-600 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {fileError}
+                    </div>
+                  )}
+
+                  <p className="input-hint mt-3">
+                    Supported formats: JSON array or plain text (Agent A: / User:)
+                  </p>
                 </div>
-              )}
+              </div>
+            </>
+          )}
 
-              {/* Custom Question Input */}
-              {questionMode === 'custom' && (
-                <textarea
-                  value={initialQuestion}
-                  onChange={(e) => setInitialQuestion(e.target.value)}
-                  className="input min-h-[100px]"
-                  placeholder="Enter the initial question the interviewer should ask..."
+          {/* Initial Question (Human & Simulation modes) */}
+          {mode !== 'upload' && (
+            <div className="card">
+              <div className="card-header">
+                <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Initial Question
+                </h2>
+              </div>
+              <div className="card-body space-y-4">
+                {/* Question Mode Toggle */}
+                <div className="flex gap-2 p-1 bg-slate-100 rounded-lg w-fit">
+                  <button
+                    onClick={() => setQuestionMode('sample')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                      questionMode === 'sample'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Sample Questions
+                  </button>
+                  <button
+                    onClick={() => setQuestionMode('custom')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                      questionMode === 'custom'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Custom Question
+                  </button>
+                </div>
+
+                {/* Sample Question Selector */}
+                {questionMode === 'sample' && (
+                  <div className="space-y-3">
+                    <select
+                      value={selectedSampleQuestion}
+                      onChange={(e) => setSelectedSampleQuestion(e.target.value)}
+                      className="input"
+                    >
+                      <option value="">Select a question...</option>
+                      {SAMPLE_QUESTIONS.map((category) => (
+                        <optgroup key={category.category} label={`${category.icon} ${category.category}`}>
+                          {category.questions.map((q, idx) => (
+                            <option key={idx} value={q}>
+                              {q}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    {selectedSampleQuestion && (
+                      <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
+                        <p className="text-slate-700 italic">&ldquo;{selectedSampleQuestion}&rdquo;</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Custom Question Input */}
+                {questionMode === 'custom' && (
+                  <textarea
+                    value={initialQuestion}
+                    onChange={(e) => setInitialQuestion(e.target.value)}
+                    className="input min-h-[100px]"
+                    placeholder="Enter the initial question the interviewer should ask..."
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Task Topic (Human & Simulation modes) */}
+          {mode !== 'upload' && (
+            <div className="card">
+              <div className="card-header">
+                <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                  Task Topic
+                  <span className="text-slate-400 font-normal text-sm">(optional)</span>
+                </h2>
+              </div>
+              <div className="card-body">
+                <input
+                  type="text"
+                  value={taskTopic}
+                  onChange={(e) => setTaskTopic(e.target.value)}
+                  className="input"
+                  placeholder="e.g., ideal partner preferences, deal-breakers, communication style..."
                 />
-              )}
+                <p className="input-hint mt-2">
+                  Focus the interview on a specific topic. If empty, the initial question defines the scope.
+                </p>
+              </div>
             </div>
-          </div>
-
-          {/* Task Topic */}
-          <div className="card">
-            <div className="card-header">
-              <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                Task Topic
-                <span className="text-slate-400 font-normal text-sm">(optional)</span>
-              </h2>
-            </div>
-            <div className="card-body">
-              <input
-                type="text"
-                value={taskTopic}
-                onChange={(e) => setTaskTopic(e.target.value)}
-                className="input"
-                placeholder="e.g., ideal partner preferences, deal-breakers, communication style..."
-              />
-              <p className="input-hint mt-2">
-                Focus the interview on a specific topic. If empty, the initial question defines the scope.
-              </p>
-            </div>
-          </div>
+          )}
 
           {/* Profile Selection (Simulation Mode) */}
           {mode === 'simulation' && (
@@ -580,31 +919,49 @@ export default function HomePage() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Start Button Card */}
-          <div className="card bg-gradient-to-br from-indigo-500 to-purple-600 border-0">
+          <div className={`card border-0 ${
+            mode === 'upload'
+              ? 'bg-gradient-to-br from-emerald-500 to-teal-600'
+              : 'bg-gradient-to-br from-indigo-500 to-purple-600'
+          }`}>
             <div className="p-6 text-center">
-              <h3 className="text-lg font-semibold text-white mb-2">Ready to Start?</h3>
+              <h3 className="text-lg font-semibold text-white mb-2">
+                {mode === 'upload' ? 'Ready to Evaluate?' : 'Ready to Start?'}
+              </h3>
               <p className="text-indigo-100 text-sm mb-6">
                 {mode === 'human'
                   ? 'You\'ll interact with the interviewer in real-time'
-                  : 'The simulation will run automatically'}
+                  : mode === 'simulation'
+                  ? 'The simulation will run automatically'
+                  : 'Agent C will analyze the transcript'}
               </p>
               <button
                 onClick={handleStartRun}
-                disabled={loading || !getQuestion()}
-                className="w-full bg-white text-indigo-600 px-6 py-3 rounded-lg font-semibold hover:bg-indigo-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                disabled={loading || (mode !== 'upload' && !getQuestion()) || (mode === 'upload' && (!uploadInitialQuestion.trim() || !uploadedTranscript))}
+                className={`w-full px-6 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
+                  mode === 'upload'
+                    ? 'bg-white text-emerald-600 hover:bg-emerald-50'
+                    : 'bg-white text-indigo-600 hover:bg-indigo-50'
+                }`}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
-                    <div className="spinner text-indigo-600"></div>
-                    Starting...
+                    <div className={`spinner ${mode === 'upload' ? 'text-emerald-600' : 'text-indigo-600'}`}></div>
+                    {mode === 'upload' ? 'Evaluating...' : 'Starting...'}
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Start Evaluation
+                    {mode === 'upload' ? (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                    {mode === 'upload' ? 'Evaluate Transcript' : 'Start Evaluation'}
                   </span>
                 )}
               </button>
@@ -645,7 +1002,15 @@ export default function HomePage() {
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                   </span>
-                  <span><strong>Evaluation:</strong> Agent C scores the conversation quality</span>
+                  <span><strong>Upload:</strong> Evaluate existing conversations</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-amber-500 mt-0.5">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </span>
+                  <span><strong>Evaluation:</strong> Agent C scores conversation quality</span>
                 </li>
               </ul>
             </div>

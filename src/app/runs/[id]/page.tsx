@@ -251,8 +251,12 @@ export default function RunPage() {
               </svg>
             </Link>
             <h1 className="text-xl font-bold text-slate-900">Evaluation Run</h1>
-            <span className={`badge ${run.mode === 'human' ? 'badge-success' : 'badge-purple'}`}>
-              {run.mode === 'human' ? 'Human Mode' : 'Simulation'}
+            <span className={`badge ${
+              run.mode === 'human' ? 'badge-success' :
+              run.mode === 'simulation' ? 'badge-purple' :
+              'bg-emerald-100 text-emerald-800'
+            }`}>
+              {run.mode === 'human' ? 'Human Mode' : run.mode === 'simulation' ? 'Simulation' : 'Uploaded'}
             </span>
           </div>
           <p className="text-sm text-slate-500 line-clamp-1">{run.initialQuestion}</p>
@@ -367,18 +371,24 @@ export default function RunPage() {
                 </svg>
                 Conversation
               </h2>
-              {run.mode === 'simulation' && (
+              {run.mode === 'simulation' ? (
                 <span className="text-sm text-slate-500">
                   {run.turnCount} / {run.maxTurns || 30} turns
                 </span>
-              )}
+              ) : run.mode === 'upload' ? (
+                <span className="text-sm text-slate-500">
+                  {run.transcript.length} messages
+                </span>
+              ) : null}
             </div>
             <div className="h-[500px] overflow-y-auto p-6 space-y-4 bg-slate-50/50">
               {run.transcript.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-slate-400">
                   {run.mode === 'human'
                     ? 'Starting conversation...'
-                    : 'Click "Start Simulation" to begin'}
+                    : run.mode === 'simulation'
+                    ? 'Click "Start Simulation" to begin'
+                    : 'No transcript data'}
                 </div>
               ) : (
                 run.transcript.map((entry, idx) => (
@@ -478,7 +488,9 @@ export default function RunPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Mode</span>
-                <span className="text-slate-900">{run.mode === 'human' ? 'Human' : 'Simulation'}</span>
+                <span className="text-slate-900">
+                  {run.mode === 'human' ? 'Human' : run.mode === 'simulation' ? 'Simulation' : 'Upload'}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Turns</span>

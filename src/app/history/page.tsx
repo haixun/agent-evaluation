@@ -62,6 +62,7 @@ export default function HistoryPage() {
     : '-'
   const humanRuns = runs.filter(r => r.mode === 'human').length
   const simRuns = runs.filter(r => r.mode === 'simulation').length
+  const uploadRuns = runs.filter(r => r.mode === 'upload').length
 
   return (
     <div className="animate-fade-in">
@@ -81,7 +82,7 @@ export default function HistoryPage() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <div className="stat-card">
           <div className="stat-label">Total Runs</div>
           <div className="stat-value">{runs.length}</div>
@@ -92,11 +93,15 @@ export default function HistoryPage() {
         </div>
         <div className="stat-card">
           <div className="stat-label">Human Mode</div>
-          <div className="stat-value text-emerald-600">{humanRuns}</div>
+          <div className="stat-value text-indigo-600">{humanRuns}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Simulations</div>
           <div className="stat-value text-purple-600">{simRuns}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Uploads</div>
+          <div className="stat-value text-emerald-600">{uploadRuns}</div>
         </div>
       </div>
 
@@ -158,10 +163,12 @@ export default function HistoryPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`badge ${
-                          run.mode === 'human' ? 'badge-success' : 'badge-purple'
+                          run.mode === 'human' ? 'badge-primary' :
+                          run.mode === 'simulation' ? 'badge-purple' :
+                          'bg-emerald-100 text-emerald-800'
                         }`}
                       >
-                        {run.mode === 'human' ? 'Human' : 'Simulation'}
+                        {run.mode === 'human' ? 'Human' : run.mode === 'simulation' ? 'Simulation' : 'Upload'}
                       </span>
                     </td>
                     <td className="px-6 py-4">

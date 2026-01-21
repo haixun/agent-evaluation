@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { agentType, content, setAsActive } = body
+    const { agentType, content, setAsActive, name, author } = body
 
     if (!agentType || !['agentA', 'agentB', 'agentC'].includes(agentType)) {
       return NextResponse.json(
@@ -87,6 +87,8 @@ export async function POST(request: NextRequest) {
       content,
       createdAt: new Date().toISOString(),
       isActive: false,
+      name: name?.trim() || undefined,
+      author: author?.trim() || undefined,
     }
 
     // If setting as active, deactivate all others first

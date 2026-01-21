@@ -1,5 +1,5 @@
 // Run modes
-export type RunMode = 'human' | 'simulation'
+export type RunMode = 'human' | 'simulation' | 'upload'
 
 // Transcript message roles
 export type TranscriptRole = 'agentA' | 'agentB' | 'user'
@@ -77,6 +77,8 @@ export interface Prompt {
   content: string
   createdAt: string
   isActive: boolean
+  name?: string      // Version name
+  author?: string    // Author of this version
 }
 
 // Profile for Agent B
@@ -122,6 +124,13 @@ export interface CreateRunRequest {
   taskTopic?: string // Topic for the conversation
   profileId?: string
   maxTurns?: number // Max turns for simulation mode
+}
+
+// Upload transcript request
+export interface UploadTranscriptRequest {
+  initialQuestion: string
+  taskTopic?: string
+  transcript: TranscriptEntry[]
 }
 
 // Max turns limit
