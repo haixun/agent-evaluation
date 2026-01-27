@@ -159,24 +159,13 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get Agent A prompt
-    const agentAPrompt = await getActivePrompt('agentA')
-    const promptContent = agentAPrompt?.content || defaultAgentAPrompt
-
-    // Call Agent A to get the initial message
-    const agentAResponse = await callAgentA(
-      promptContent,
-      run.initialQuestion,
-      [],
-      run.taskTopic
-    )
-
-    // Add Agent A message to transcript
+    // For human mode, use the initial question directly as Agent A's first message
+    // This ensures the exact custom question is asked without reformulation
     const agentAEntry: TranscriptEntry = {
       role: 'agentA',
-      content: agentAResponse.message,
+      content: run.initialQuestion,
       timestamp: new Date().toISOString(),
-      endFlag: agentAResponse.done ? 1 : 0,
+      endFlag: 0,
     }
     run.transcript.push(agentAEntry)
     run.turnCount++
@@ -188,7 +177,7 @@ export async function GET(request: NextRequest) {
       data: {
         run,
         started: true,
-        agentMessage: agentAResponse.message,
+        agentMessage: run.initialQuestion,
       },
     })
   } catch (error) {
