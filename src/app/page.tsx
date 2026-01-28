@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Profile, RunMode, TranscriptEntry } from '@/types'
+import type { Profile, RunMode, TranscriptEntry, Settings } from '@/types'
 
 const SAMPLE_QUESTIONS = [
   {
@@ -83,8 +83,16 @@ export default function HomePage() {
   const [uploadTaskTopic, setUploadTaskTopic] = useState('')
   const [fileError, setFileError] = useState('')
 
+  // Settings state
+  const [settings, setSettings] = useState<Settings>({
+    agentAModel: 'gpt-5.1',
+    agentBModel: 'gpt-4o-mini',
+    agentCModel: 'gpt-5.1',
+  })
+
   useEffect(() => {
     fetchProfiles()
+    fetchSettings()
   }, [])
 
   async function fetchProfiles() {
@@ -102,6 +110,18 @@ export default function HomePage() {
       console.error('Failed to fetch profiles:', err)
     } finally {
       setProfilesLoading(false)
+    }
+  }
+
+  async function fetchSettings() {
+    try {
+      const res = await fetch('/api/settings')
+      const data = await res.json()
+      if (data.success) {
+        setSettings(data.data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch settings:', err)
     }
   }
 
@@ -968,6 +988,36 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Agent Architecture */}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="font-semibold text-slate-900">Agent Architecture</h3>
+            </div>
+            <div className="card-body space-y-3">
+              <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg">
+                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">A</div>
+                <div>
+                  <div className="text-sm font-medium text-slate-900">Interviewer</div>
+                  <div className="text-xs text-slate-500">{settings.agentAModel}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
+                <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">B</div>
+                <div>
+                  <div className="text-sm font-medium text-slate-900">Persona</div>
+                  <div className="text-xs text-slate-500">{settings.agentBModel}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg">
+                <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">C</div>
+                <div>
+                  <div className="text-sm font-medium text-slate-900">Evaluator</div>
+                  <div className="text-xs text-slate-500">{settings.agentCModel}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Quick Tips */}
           <div className="card">
             <div className="card-header">
@@ -1013,36 +1063,6 @@ export default function HomePage() {
                   <span><strong>Evaluation:</strong> Agent C scores conversation quality</span>
                 </li>
               </ul>
-            </div>
-          </div>
-
-          {/* Agent Info */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="font-semibold text-slate-900">Agent Architecture</h3>
-            </div>
-            <div className="card-body space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg">
-                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">A</div>
-                <div>
-                  <div className="text-sm font-medium text-slate-900">Interviewer</div>
-                  <div className="text-xs text-slate-500">GPT-4o</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
-                <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">B</div>
-                <div>
-                  <div className="text-sm font-medium text-slate-900">Persona</div>
-                  <div className="text-xs text-slate-500">GPT-4o-mini</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg">
-                <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">C</div>
-                <div>
-                  <div className="text-sm font-medium text-slate-900">Evaluator</div>
-                  <div className="text-xs text-slate-500">GPT-4o</div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

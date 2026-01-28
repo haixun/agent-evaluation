@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { Run, Prompt, Profile } from '@/types'
+import type { Run, Prompt, Profile, Settings } from '@/types'
 
 // Check storage backend priority: Redis > Blob > Local
 const USE_REDIS = !!process.env.KV_REST_API_URL || !!process.env.UPSTASH_REDIS_REST_URL
@@ -11,6 +11,7 @@ const DATA_DIR = path.join(process.cwd(), '.data')
 const RUNS_DIR = path.join(DATA_DIR, 'runs')
 const PROMPTS_DIR = path.join(DATA_DIR, 'prompts')
 const PROFILES_DIR = path.join(DATA_DIR, 'profiles')
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json')
 
 // Ensure directories exist for local storage
 async function ensureDir(dir: string): Promise<void> {
@@ -182,6 +183,25 @@ async function localDeleteProfile(id: string): Promise<void> {
   } catch {
     // File doesn't exist
   }
+}
+
+async function localGetSettings(): Promise<Settings> {
+  try {
+    const data = await fs.readFile(SETTINGS_FILE, 'utf-8')
+    return JSON.parse(data)
+  } catch {
+    // Return defaults if file doesn't exist
+    return {
+      agentAModel: 'gpt-5.1',
+      agentBModel: 'gpt-4o-mini',
+      agentCModel: 'gpt-5.1',
+    }
+  }
+}
+
+async function localSaveSettings(settings: Settings): Promise<void> {
+  await ensureDir(DATA_DIR)
+  await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2))
 }
 
 // ============ VERCEL BLOB STORAGE ============
@@ -424,6 +444,44 @@ async function blobDeleteProfile(id: string): Promise<void> {
   }
 }
 
+async function blobGetSettings(): Promise<Settings> {
+  try {
+    const { list } = await import('@vercel/blob')
+    const { blobs } = await list({ prefix: 'settings.json' })
+    if (blobs.length === 0) {
+      return {
+        agentAModel: 'gpt-5.1',
+        agentBModel: 'gpt-4o-mini',
+        agentCModel: 'gpt-5.1',
+      }
+    }
+
+    const response = await fetch(blobs[0].url)
+    if (!response.ok) {
+      return {
+        agentAModel: 'gpt-5.1',
+        agentBModel: 'gpt-4o-mini',
+        agentCModel: 'gpt-5.1',
+      }
+    }
+    return await response.json()
+  } catch {
+    return {
+      agentAModel: 'gpt-5.1',
+      agentBModel: 'gpt-4o-mini',
+      agentCModel: 'gpt-5.1',
+    }
+  }
+}
+
+async function blobSaveSettings(settings: Settings): Promise<void> {
+  const { put } = await import('@vercel/blob')
+  await put('settings.json', JSON.stringify(settings), {
+    access: 'public',
+    addRandomSuffix: false,
+  })
+}
+
 // ============ UPSTASH REDIS STORAGE ============
 
 import { Redis } from '@upstash/redis'
@@ -552,6 +610,24 @@ async function redisDeleteProfile(id: string): Promise<void> {
   const redis = getRedis()
   await redis.del(`profile:${id}`)
   await redis.srem('profiles', id)
+}
+
+async function redisGetSettings(): Promise<Settings> {
+  const redis = getRedis()
+  const data = await redis.get<string>('settings')
+  if (!data) {
+    return {
+      agentAModel: 'gpt-5.1',
+      agentBModel: 'gpt-4o-mini',
+      agentCModel: 'gpt-5.1',
+    }
+  }
+  return typeof data === 'string' ? JSON.parse(data) : data
+}
+
+async function redisSaveSettings(settings: Settings): Promise<void> {
+  const redis = getRedis()
+  await redis.set('settings', JSON.stringify(settings))
 }
 
 // ============ EXPORTED FUNCTIONS ============
@@ -684,4 +760,24 @@ export async function deleteProfile(id: string): Promise<void> {
     return blobDeleteProfile(id)
   }
   return localDeleteProfile(id)
+}
+
+export async function getSettings(): Promise<Settings> {
+  if (USE_REDIS) {
+    return redisGetSettings()
+  }
+  if (USE_BLOB) {
+    return blobGetSettings()
+  }
+  return localGetSettings()
+}
+
+export async function saveSettings(settings: Settings): Promise<void> {
+  if (USE_REDIS) {
+    return redisSaveSettings(settings)
+  }
+  if (USE_BLOB) {
+    return blobSaveSettings(settings)
+  }
+  return localSaveSettings(settings)
 }

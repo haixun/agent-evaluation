@@ -52,6 +52,12 @@ export default function RootLayout({
                 >
                   Prompts
                 </Link>
+                <Link
+                  href="/settings"
+                  className="px-4 py-2 text-sm font-medium text-indigo-100 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  Settings
+                </Link>
               </div>
             </div>
           </nav>

@@ -1,9 +1,21 @@
 import openai from './openai'
+import { getSettings } from './storage'
 import type { AgentAResponse, Evaluation, TranscriptEntry } from '@/types'
 
-const MODEL_AGENT_A = 'gpt-4o'
-const MODEL_AGENT_B = 'gpt-4o-mini'  // Faster model for simulated responses
-const MODEL_AGENT_C = 'gpt-4o'
+// Cache for settings to avoid repeated file reads
+let settingsCache: { agentAModel: string; agentBModel: string; agentCModel: string } | null = null
+let settingsCacheTime = 0
+const CACHE_DURATION = 5000 // 5 seconds
+
+async function getModelSettings() {
+  const now = Date.now()
+  if (!settingsCache || now - settingsCacheTime > CACHE_DURATION) {
+    const settings = await getSettings()
+    settingsCache = settings
+    settingsCacheTime = now
+  }
+  return settingsCache
+}
 
 function formatTranscript(transcript: TranscriptEntry[]): string {
   if (transcript.length === 0) {
@@ -32,8 +44,9 @@ export async function callAgentA(
     .replace('{task_topic}', taskTopic || initialQuestion)
     .replace('{conversation_history}', transcriptText)
 
+  const settings = await getModelSettings()
   const completion = await openai.chat.completions.create({
-    model: MODEL_AGENT_A,
+    model: settings.agentAModel,
     messages: [
       { role: 'user', content: prompt },
     ],
@@ -104,8 +117,9 @@ ${transcriptText}
 QUESTION:
 ${lastQuestion}`
 
+  const settings = await getModelSettings()
   const completion = await openai.chat.completions.create({
-    model: MODEL_AGENT_B,
+    model: settings.agentBModel,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
@@ -132,8 +146,9 @@ ${initialQuestion}
 TRANSCRIPT:
 ${transcriptText}`
 
+  const settings = await getModelSettings()
   const completion = await openai.chat.completions.create({
-    model: MODEL_AGENT_C,
+    model: settings.agentCModel,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
