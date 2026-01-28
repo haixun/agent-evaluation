@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     const run: Run = {
       runId,
-      mode: 'upload',
+      mode: 'transcript',
       status: 'completed',
       createdAt: now,
       endedAt: now,

@@ -76,7 +76,7 @@ export default function HomePage() {
   const [editProfileName, setEditProfileName] = useState('')
   const [editProfileContent, setEditProfileContent] = useState('')
 
-  // Upload mode state
+  // Transcript mode state
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [uploadedTranscript, setUploadedTranscript] = useState<TranscriptEntry[] | null>(null)
   const [uploadInitialQuestion, setUploadInitialQuestion] = useState('')
@@ -331,8 +331,8 @@ export default function HomePage() {
   }
 
   async function handleStartRun() {
-    // Handle upload mode separately
-    if (mode === 'upload') {
+    // Handle transcript mode separately
+    if (mode === 'transcript') {
       if (!uploadInitialQuestion.trim()) {
         setError('Please enter the initial question that started the conversation')
         return
@@ -498,7 +498,7 @@ export default function HomePage() {
 
                 <label
                   className={`relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                    mode === 'upload'
+                    mode === 'transcript'
                       ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
                       : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                   }`}
@@ -506,18 +506,18 @@ export default function HomePage() {
                   <input
                     type="radio"
                     name="mode"
-                    value="upload"
-                    checked={mode === 'upload'}
-                    onChange={() => setMode('upload')}
+                    value="transcript"
+                    checked={mode === 'transcript'}
+                    onChange={() => setMode('transcript')}
                     className="sr-only"
                   />
                   <div className="flex items-center gap-3 mb-2">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${mode === 'upload' ? 'bg-emerald-600' : 'bg-slate-200'}`}>
-                      <svg className={`w-5 h-5 ${mode === 'upload' ? 'text-white' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${mode === 'transcript' ? 'bg-emerald-600' : 'bg-slate-200'}`}>
+                      <svg className={`w-5 h-5 ${mode === 'transcript' ? 'text-white' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                       </svg>
                     </div>
-                    <span className="font-semibold text-slate-900">Upload Mode</span>
+                    <span className="font-semibold text-slate-900">Transcript Mode</span>
                   </div>
                   <p className="text-sm text-slate-600">Evaluate an existing transcript from a real conversation</p>
                 </label>
@@ -525,10 +525,10 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Upload Mode UI */}
-          {mode === 'upload' && (
+          {/* Transcript Mode UI */}
+          {mode === 'transcript' && (
             <>
-              {/* Initial Question for Upload */}
+              {/* Initial Question for Transcript */}
               <div className="card">
                 <div className="card-header">
                   <h2 className="font-semibold text-slate-900 flex items-center gap-2">
@@ -552,7 +552,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Task Topic for Upload */}
+              {/* Task Topic for Transcript */}
               <div className="card">
                 <div className="card-header">
                   <h2 className="font-semibold text-slate-900 flex items-center gap-2">
@@ -681,7 +681,7 @@ export default function HomePage() {
           )}
 
           {/* Initial Question (Human & Simulation modes) */}
-          {mode !== 'upload' && (
+          {mode !== 'transcript' && (
             <div className="card">
               <div className="card-header">
                 <h2 className="font-semibold text-slate-900 flex items-center gap-2">
@@ -757,7 +757,7 @@ export default function HomePage() {
           )}
 
           {/* Task Topic (Human & Simulation modes) */}
-          {mode !== 'upload' && (
+          {mode !== 'transcript' && (
             <div className="card">
               <div className="card-header">
                 <h2 className="font-semibold text-slate-900 flex items-center gap-2">
@@ -940,13 +940,13 @@ export default function HomePage() {
         <div className="space-y-6">
           {/* Start Button Card */}
           <div className={`card border-0 ${
-            mode === 'upload'
+            mode === 'transcript'
               ? 'bg-gradient-to-br from-emerald-500 to-teal-600'
               : 'bg-gradient-to-br from-indigo-500 to-purple-600'
           }`}>
             <div className="p-6 text-center">
               <h3 className="text-lg font-semibold text-white mb-2">
-                {mode === 'upload' ? 'Ready to Evaluate?' : 'Ready to Start?'}
+                {mode === 'transcript' ? 'Ready to Evaluate?' : 'Ready to Start?'}
               </h3>
               <p className="text-indigo-100 text-sm mb-6">
                 {mode === 'human'
@@ -957,21 +957,21 @@ export default function HomePage() {
               </p>
               <button
                 onClick={handleStartRun}
-                disabled={loading || (mode !== 'upload' && !getQuestion()) || (mode === 'upload' && (!uploadInitialQuestion.trim() || !uploadedTranscript))}
+                disabled={loading || (mode !== 'transcript' && !getQuestion()) || (mode === 'transcript' && (!uploadInitialQuestion.trim() || !uploadedTranscript))}
                 className={`w-full px-6 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
-                  mode === 'upload'
+                  mode === 'transcript'
                     ? 'bg-white text-emerald-600 hover:bg-emerald-50'
                     : 'bg-white text-indigo-600 hover:bg-indigo-50'
                 }`}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
-                    <div className={`spinner ${mode === 'upload' ? 'text-emerald-600' : 'text-indigo-600'}`}></div>
-                    {mode === 'upload' ? 'Evaluating...' : 'Starting...'}
+                    <div className={`spinner ${mode === 'transcript' ? 'text-emerald-600' : 'text-indigo-600'}`}></div>
+                    {mode === 'transcript' ? 'Evaluating...' : 'Starting...'}
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-2">
-                    {mode === 'upload' ? (
+                    {mode === 'transcript' ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                       </svg>
@@ -981,7 +981,7 @@ export default function HomePage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     )}
-                    {mode === 'upload' ? 'Evaluate Transcript' : 'Start Evaluation'}
+                    {mode === 'transcript' ? 'Evaluate Transcript' : 'Start Evaluation'}
                   </span>
                 )}
               </button>
@@ -1052,7 +1052,7 @@ export default function HomePage() {
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                   </span>
-                  <span><strong>Upload:</strong> Evaluate existing conversations</span>
+                  <span><strong>Transcript:</strong> Evaluate existing conversations</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-amber-500 mt-0.5">

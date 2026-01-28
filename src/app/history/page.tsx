@@ -62,7 +62,7 @@ export default function HistoryPage() {
     : '-'
   const humanRuns = runs.filter(r => r.mode === 'human').length
   const simRuns = runs.filter(r => r.mode === 'simulation').length
-  const uploadRuns = runs.filter(r => r.mode === 'upload').length
+  const uploadRuns = runs.filter(r => r.mode === 'transcript').length
 
   return (
     <div className="animate-fade-in">
@@ -100,7 +100,7 @@ export default function HistoryPage() {
           <div className="stat-value text-purple-600">{simRuns}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Uploads</div>
+          <div className="stat-label">Transcripts</div>
           <div className="stat-value text-emerald-600">{uploadRuns}</div>
         </div>
       </div>
@@ -168,7 +168,7 @@ export default function HistoryPage() {
                           'bg-emerald-100 text-emerald-800'
                         }`}
                       >
-                        {run.mode === 'human' ? 'Human' : run.mode === 'simulation' ? 'Simulation' : 'Upload'}
+                        {run.mode === 'human' ? 'Human' : run.mode === 'simulation' ? 'Simulation' : 'Transcript'}
                       </span>
                     </td>
                     <td className="px-6 py-4">

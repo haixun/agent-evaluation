@@ -1,5 +1,5 @@
 // Run modes
-export type RunMode = 'human' | 'simulation' | 'upload'
+export type RunMode = 'human' | 'simulation' | 'transcript'
 
 // Transcript message roles
 export type TranscriptRole = 'agentA' | 'agentB' | 'user'
@@ -126,7 +126,7 @@ export interface CreateRunRequest {
   maxTurns?: number // Max turns for simulation mode
 }
 
-// Upload transcript request
+// Transcript upload request
 export interface UploadTranscriptRequest {
   initialQuestion: string
   taskTopic?: string

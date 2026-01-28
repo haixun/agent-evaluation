@@ -256,7 +256,7 @@ export default function RunPage() {
               run.mode === 'simulation' ? 'badge-purple' :
               'bg-emerald-100 text-emerald-800'
             }`}>
-              {run.mode === 'human' ? 'Human Mode' : run.mode === 'simulation' ? 'Simulation' : 'Uploaded'}
+              {run.mode === 'human' ? 'Human Mode' : run.mode === 'simulation' ? 'Simulation' : 'Transcript'}
             </span>
           </div>
           <p className="text-sm text-slate-500 line-clamp-1">{run.initialQuestion}</p>
@@ -375,7 +375,7 @@ export default function RunPage() {
                 <span className="text-sm text-slate-500">
                   {run.turnCount} / {run.maxTurns || 30} turns
                 </span>
-              ) : run.mode === 'upload' ? (
+              ) : run.mode === 'transcript' ? (
                 <span className="text-sm text-slate-500">
                   {run.transcript.length} messages
                 </span>
@@ -489,7 +489,7 @@ export default function RunPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Mode</span>
                 <span className="text-slate-900">
-                  {run.mode === 'human' ? 'Human' : run.mode === 'simulation' ? 'Simulation' : 'Upload'}
+                  {run.mode === 'human' ? 'Human' : run.mode === 'simulation' ? 'Simulation' : 'Transcript'}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
