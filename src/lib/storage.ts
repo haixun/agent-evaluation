@@ -135,6 +135,15 @@ async function localSetActivePrompt(agentType: string, id: string): Promise<void
   }
 }
 
+async function localDeletePrompt(agentType: string, id: string): Promise<void> {
+  try {
+    const filePath = path.join(PROMPTS_DIR, agentType, `${id}.json`)
+    await fs.unlink(filePath)
+  } catch {
+    // File doesn't exist
+  }
+}
+
 async function localSaveProfile(profile: Profile): Promise<void> {
   await ensureDir(PROFILES_DIR)
   const filePath = path.join(PROFILES_DIR, `${profile.id}.json`)
@@ -389,6 +398,14 @@ async function blobSetActivePrompt(agentType: string, id: string): Promise<void>
   }
 }
 
+async function blobDeletePrompt(agentType: string, id: string): Promise<void> {
+  const { list, del } = await import('@vercel/blob')
+  const { blobs } = await list({ prefix: `prompts/${agentType}/${id}.json` })
+  for (const blob of blobs) {
+    await del(blob.url)
+  }
+}
+
 async function blobSaveProfile(profile: Profile): Promise<void> {
   const { put } = await import('@vercel/blob')
   await put(`profiles/${profile.id}.json`, JSON.stringify(profile), {
@@ -576,6 +593,12 @@ async function redisSetActivePrompt(agentType: string, id: string): Promise<void
     }
     await redisSavePrompt(prompt)
   }
+}
+
+async function redisDeletePrompt(agentType: string, id: string): Promise<void> {
+  const redis = getRedis()
+  await redis.del(`prompt:${agentType}:${id}`)
+  await redis.srem(`prompts:${agentType}`, id)
 }
 
 async function redisSaveProfile(profile: Profile): Promise<void> {
@@ -780,4 +803,14 @@ export async function saveSettings(settings: Settings): Promise<void> {
     return blobSaveSettings(settings)
   }
   return localSaveSettings(settings)
+}
+
+export async function deletePrompt(agentType: string, id: string): Promise<void> {
+  if (USE_REDIS) {
+    return redisDeletePrompt(agentType, id)
+  }
+  if (USE_BLOB) {
+    return blobDeletePrompt(agentType, id)
+  }
+  return localDeletePrompt(agentType, id)
 }

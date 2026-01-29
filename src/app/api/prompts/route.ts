@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { nanoid } from 'nanoid'
-import { savePrompt, listPrompts, getActivePrompt, setActivePrompt } from '@/lib/storage'
+import { savePrompt, listPrompts, getActivePrompt, setActivePrompt, deletePrompt } from '@/lib/storage'
 import { defaultAgentAPrompt, defaultAgentBPrompt, defaultAgentCPrompt } from '@/lib/defaultPrompts'
 import type { Prompt } from '@/types'
 
@@ -81,6 +81,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!author || typeof author !== 'string' || !author.trim()) {
+      return NextResponse.json(
+        { success: false, error: 'Author is required' },
+        { status: 400 }
+      )
+    }
+
     const prompt: Prompt = {
       id: nanoid(),
       agentType,
@@ -88,7 +95,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
       isActive: false,
       name: name?.trim() || undefined,
-      author: author?.trim() || undefined,
+      author: author.trim(),
     }
 
     // If setting as active, deactivate all others first
@@ -148,6 +155,48 @@ export async function PATCH(request: NextRequest) {
     console.error('Error setting active prompt:', error)
     return NextResponse.json(
       { success: false, error: 'Failed to set active prompt' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE /api/prompts?agentType=agentA&id=xxx
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const agentType = searchParams.get('agentType')
+    const id = searchParams.get('id')
+
+    if (!agentType || !['agentA', 'agentB', 'agentC'].includes(agentType)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid agentType parameter' },
+        { status: 400 }
+      )
+    }
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'id parameter is required' },
+        { status: 400 }
+      )
+    }
+
+    // Check if this is the active prompt
+    const activePrompt = await getActivePrompt(agentType)
+    if (activePrompt && activePrompt.id === id) {
+      return NextResponse.json(
+        { success: false, error: 'Cannot delete the active prompt' },
+        { status: 400 }
+      )
+    }
+
+    await deletePrompt(agentType, id)
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting prompt:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete prompt' },
       { status: 500 }
     )
   }

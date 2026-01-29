@@ -22,8 +22,10 @@ export default function PromptsPage() {
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [activePrompt, setActivePrompt] = useState<Prompt | null>(null)
   const [editContent, setEditContent] = useState('')
+  const [originalContent, setOriginalContent] = useState('') // Track original content
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -45,7 +47,9 @@ export default function PromptsPage() {
       if (data.success) {
         setPrompts(data.data.prompts)
         setActivePrompt(data.data.activePrompt)
-        setEditContent(data.data.activePrompt?.content || '')
+        const content = data.data.activePrompt?.content || ''
+        setEditContent(content)
+        setOriginalContent(content) // Track original content
       } else {
         setError(data.error || 'Failed to fetch prompts')
       }
@@ -77,6 +81,11 @@ export default function PromptsPage() {
       return
     }
 
+    if (!authorName.trim()) {
+      setError('Author name is required')
+      return
+    }
+
     setSaving(true)
     setError('')
     setSuccess('')
@@ -90,7 +99,7 @@ export default function PromptsPage() {
           content: editContent.trim(),
           setAsActive: true,
           name: versionName.trim(),
-          author: authorName.trim() || undefined,
+          author: authorName.trim(),
         }),
       })
 
@@ -137,6 +146,37 @@ export default function PromptsPage() {
   function handleSelectVersion(prompt: Prompt) {
     setEditContent(prompt.content)
   }
+
+  async function handleDeletePrompt(promptId: string) {
+    if (!confirm('Are you sure you want to delete this prompt version? This action cannot be undone.')) {
+      return
+    }
+
+    setDeleting(promptId)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await fetch(`/api/prompts?agentType=${selectedAgent}&id=${promptId}`, {
+        method: 'DELETE',
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setSuccess('Prompt deleted successfully')
+        fetchPrompts(selectedAgent)
+      } else {
+        setError(data.error || 'Failed to delete prompt')
+      }
+    } catch (err) {
+      setError('Failed to delete prompt')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  // Check if content has changed
+  const hasChanges = editContent.trim() !== originalContent.trim()
 
   const agentColor = AGENT_COLORS[selectedAgent]
 
@@ -233,8 +273,9 @@ export default function PromptsPage() {
                   <div className="mt-4 flex justify-end">
                     <button
                       onClick={openSaveModal}
-                      disabled={saving || !editContent.trim()}
+                      disabled={saving || !editContent.trim() || !hasChanges}
                       className="btn-primary"
+                      title={!hasChanges ? 'No changes to save' : ''}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -289,30 +330,49 @@ export default function PromptsPage() {
                           <div className="font-medium text-slate-900 truncate">
                             {prompt.name || `Version ${prompt.id.substring(0, 8)}`}
                           </div>
-                          {prompt.author && (
-                            <div className="text-xs text-slate-500 mt-0.5">
-                              by {prompt.author}
-                            </div>
-                          )}
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            by {prompt.author}
+                          </div>
                           <div className="text-xs text-slate-400 mt-1">
                             {new Date(prompt.createdAt).toLocaleString()}
                           </div>
                         </div>
-                        {prompt.isActive ? (
-                          <span className="badge badge-success shrink-0">
-                            Active
-                          </span>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleSetActive(prompt.id)
-                            }}
-                            className="text-xs text-indigo-600 hover:text-indigo-700 font-medium shrink-0"
-                          >
-                            Set Active
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {prompt.isActive ? (
+                            <span className="badge badge-success">
+                              Active
+                            </span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleSetActive(prompt.id)
+                                }}
+                                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                              >
+                                Set Active
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeletePrompt(prompt.id)
+                                }}
+                                disabled={deleting === prompt.id}
+                                className="text-xs text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+                                title="Delete this version"
+                              >
+                                {deleting === prompt.id ? (
+                                  <div className="spinner w-3 h-3"></div>
+                                ) : (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                )}
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="mt-2 text-xs text-slate-500 line-clamp-2 font-mono">
                         {prompt.content.substring(0, 100)}...
@@ -339,12 +399,10 @@ export default function PromptsPage() {
                     <span className="text-slate-500">Name</span>
                     <span className="text-slate-900 font-medium">{activePrompt.name || 'Default'}</span>
                   </div>
-                  {activePrompt.author && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Author</span>
-                      <span className="text-slate-900">{activePrompt.author}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Author</span>
+                    <span className="text-slate-900">{activePrompt.author}</span>
+                  </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">ID</span>
                     <span className="text-slate-900 font-mono text-xs">{activePrompt.id}</span>
@@ -366,7 +424,7 @@ export default function PromptsPage() {
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full animate-fade-in">
             <div className="p-6 border-b border-slate-200">
               <h3 className="text-lg font-semibold text-slate-900">Save New Version</h3>
-              <p className="text-sm text-slate-500 mt-1">Give this prompt version a name and optionally add your name as author.</p>
+              <p className="text-sm text-slate-500 mt-1">Give this prompt version a name and add your name as author.</p>
             </div>
             <div className="p-6 space-y-4">
               <div className="input-group">
@@ -384,7 +442,7 @@ export default function PromptsPage() {
               </div>
               <div className="input-group">
                 <label className="input-label">
-                  Author <span className="text-slate-400">(optional)</span>
+                  Author <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -405,7 +463,7 @@ export default function PromptsPage() {
               </button>
               <button
                 onClick={handleSavePrompt}
-                disabled={saving || !versionName.trim()}
+                disabled={saving || !versionName.trim() || !authorName.trim()}
                 className="btn-primary"
               >
                 {saving ? (

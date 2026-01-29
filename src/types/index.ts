@@ -78,7 +78,7 @@ export interface Prompt {
   createdAt: string
   isActive: boolean
   name?: string      // Version name
-  author?: string    // Author of this version
+  author: string     // Author of this version
 }
 
 // Profile for Agent B
