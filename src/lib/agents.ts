@@ -17,6 +17,15 @@ async function getModelSettings() {
   return settingsCache
 }
 
+// Helper to determine which token parameter to use based on model
+function getTokenParams(model: string, maxTokens: number) {
+  // GPT-5 models use max_completion_tokens, others use max_tokens
+  if (model.startsWith('gpt-5') || model.startsWith('o1') || model.startsWith('o3')) {
+    return { max_completion_tokens: maxTokens }
+  }
+  return { max_tokens: maxTokens }
+}
+
 function formatTranscript(transcript: TranscriptEntry[]): string {
   if (transcript.length === 0) {
     return '(No conversation yet)'
@@ -45,13 +54,14 @@ export async function callAgentA(
     .replace('{conversation_history}', transcriptText)
 
   const settings = await getModelSettings()
+  const tokenParams = getTokenParams(settings.agentAModel, 1000)
   const completion = await openai.chat.completions.create({
     model: settings.agentAModel,
     messages: [
       { role: 'user', content: prompt },
     ],
     temperature: 0.7,
-    max_tokens: 1000,
+    ...tokenParams,
   })
 
   const responseText = completion.choices[0]?.message?.content || ''
@@ -118,6 +128,7 @@ QUESTION:
 ${lastQuestion}`
 
   const settings = await getModelSettings()
+  const tokenParams = getTokenParams(settings.agentBModel, 1000)
   const completion = await openai.chat.completions.create({
     model: settings.agentBModel,
     messages: [
@@ -125,7 +136,7 @@ ${lastQuestion}`
       { role: 'user', content: userContent },
     ],
     temperature: 0.8,
-    max_tokens: 1000,
+    ...tokenParams,
   })
 
   return completion.choices[0]?.message?.content || ''
@@ -147,6 +158,7 @@ TRANSCRIPT:
 ${transcriptText}`
 
   const settings = await getModelSettings()
+  const tokenParams = getTokenParams(settings.agentCModel, 2000)
   const completion = await openai.chat.completions.create({
     model: settings.agentCModel,
     messages: [
@@ -154,7 +166,7 @@ ${transcriptText}`
       { role: 'user', content: userContent },
     ],
     temperature: 0.3,
-    max_tokens: 2000,
+    ...tokenParams,
   })
 
   const responseText = completion.choices[0]?.message?.content || ''

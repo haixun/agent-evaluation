@@ -120,8 +120,13 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error in chat:', error)
+    // Log more details about the error
+    if (error instanceof Error) {
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    }
     return NextResponse.json(
-      { success: false, error: 'Failed to process chat message' },
+      { success: false, error: `Failed to process chat message: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }

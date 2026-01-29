@@ -164,8 +164,13 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error in simulation step:', error)
+    // Log more details about the error
+    if (error instanceof Error) {
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    }
     return NextResponse.json(
-      { success: false, error: 'Failed to execute simulation step' },
+      { success: false, error: `Failed to execute simulation step: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     )
   }
