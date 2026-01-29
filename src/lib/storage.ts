@@ -192,9 +192,9 @@ async function localGetSettings(): Promise<Settings> {
   } catch {
     // Return defaults if file doesn't exist
     return {
-      agentAModel: 'gpt-4o',
+      agentAModel: 'gpt-5.1',
       agentBModel: 'gpt-4o-mini',
-      agentCModel: 'gpt-4o',
+      agentCModel: 'gpt-5.1',
     }
   }
 }
@@ -450,26 +450,26 @@ async function blobGetSettings(): Promise<Settings> {
     const { blobs } = await list({ prefix: 'settings.json' })
     if (blobs.length === 0) {
       return {
-        agentAModel: 'gpt-4o',
+        agentAModel: 'gpt-5.1',
         agentBModel: 'gpt-4o-mini',
-        agentCModel: 'gpt-4o',
+        agentCModel: 'gpt-5.1',
       }
     }
 
     const response = await fetch(blobs[0].url)
     if (!response.ok) {
       return {
-        agentAModel: 'gpt-4o',
+        agentAModel: 'gpt-5.1',
         agentBModel: 'gpt-4o-mini',
-        agentCModel: 'gpt-4o',
+        agentCModel: 'gpt-5.1',
       }
     }
     return await response.json()
   } catch {
     return {
-      agentAModel: 'gpt-4o',
+      agentAModel: 'gpt-5.1',
       agentBModel: 'gpt-4o-mini',
-      agentCModel: 'gpt-4o',
+      agentCModel: 'gpt-5.1',
     }
   }
 }
@@ -617,9 +617,9 @@ async function redisGetSettings(): Promise<Settings> {
   const data = await redis.get<string>('settings')
   if (!data) {
     return {
-      agentAModel: 'gpt-4o',
+      agentAModel: 'gpt-5.1',
       agentBModel: 'gpt-4o-mini',
-      agentCModel: 'gpt-4o',
+      agentCModel: 'gpt-5.1',
     }
   }
   return typeof data === 'string' ? JSON.parse(data) : data

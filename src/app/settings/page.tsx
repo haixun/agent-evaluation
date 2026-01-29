@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react'
 import type { Settings, LLMModel } from '@/types'
 
 const availableModels: LLMModel[] = [
+  'gpt-5',
+  'gpt-5.1',
+  'gpt-5.2',
+  'gpt-5-mini',
+  'gpt-5-nano',
+  'gpt-5.1-codex',
   'gpt-4o',
   'gpt-4o-mini',
   'o1',
@@ -13,9 +19,9 @@ const availableModels: LLMModel[] = [
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({
-    agentAModel: 'gpt-4o',
+    agentAModel: 'gpt-5.1',
     agentBModel: 'gpt-4o-mini',
-    agentCModel: 'gpt-4o',
+    agentCModel: 'gpt-5.1',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -198,7 +204,7 @@ export default function SettingsPage() {
               <p className="font-semibold text-slate-900 mb-1">Agent A (Interviewer)</p>
               <p>
                 Conducts the interview by asking questions. Uses the configured prompt to guide the
-                conversation style and depth. Recommended: gpt-4o for best performance.
+                conversation style and depth. Recommended: gpt-5 or gpt-5.1 for best performance.
               </p>
             </div>
             <div>
@@ -212,7 +218,7 @@ export default function SettingsPage() {
               <p className="font-semibold text-slate-900 mb-1">Agent C (Evaluator)</p>
               <p>
                 Analyzes the conversation and provides detailed evaluation scores. Recommended:
-                gpt-4o for accurate, nuanced evaluation.
+                gpt-5 or gpt-5.1 for accurate, nuanced evaluation.
               </p>
             </div>
           </div>

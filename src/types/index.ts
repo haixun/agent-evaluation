@@ -137,7 +137,18 @@ export interface UploadTranscriptRequest {
 export const MAX_TURNS = 30
 
 // Available LLM models
-export type LLMModel = 'gpt-4o' | 'gpt-4o-mini' | 'o1' | 'o1-mini' | 'o3-mini'
+export type LLMModel =
+  | 'gpt-5'
+  | 'gpt-5.1'
+  | 'gpt-5.2'
+  | 'gpt-5-mini'
+  | 'gpt-5-nano'
+  | 'gpt-5.1-codex'
+  | 'gpt-4o'
+  | 'gpt-4o-mini'
+  | 'o1'
+  | 'o1-mini'
+  | 'o3-mini'
 
 // Settings
 export interface Settings {
