@@ -9,14 +9,13 @@ const availableModels: LLMModel[] = [
   'o1',
   'o1-mini',
   'o3-mini',
-  'gpt-5.1',
 ]
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({
-    agentAModel: 'gpt-5.1',
+    agentAModel: 'gpt-4o',
     agentBModel: 'gpt-4o-mini',
-    agentCModel: 'gpt-5.1',
+    agentCModel: 'gpt-4o',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -199,7 +198,7 @@ export default function SettingsPage() {
               <p className="font-semibold text-slate-900 mb-1">Agent A (Interviewer)</p>
               <p>
                 Conducts the interview by asking questions. Uses the configured prompt to guide the
-                conversation style and depth. Recommended: gpt-5.1 or gpt-4o for best performance.
+                conversation style and depth. Recommended: gpt-4o for best performance.
               </p>
             </div>
             <div>
@@ -213,7 +212,7 @@ export default function SettingsPage() {
               <p className="font-semibold text-slate-900 mb-1">Agent C (Evaluator)</p>
               <p>
                 Analyzes the conversation and provides detailed evaluation scores. Recommended:
-                gpt-5.1 or gpt-4o for accurate, nuanced evaluation.
+                gpt-4o for accurate, nuanced evaluation.
               </p>
             </div>
           </div>

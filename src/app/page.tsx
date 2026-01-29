@@ -85,9 +85,9 @@ export default function HomePage() {
 
   // Settings state
   const [settings, setSettings] = useState<Settings>({
-    agentAModel: 'gpt-5.1',
+    agentAModel: 'gpt-4o',
     agentBModel: 'gpt-4o-mini',
-    agentCModel: 'gpt-5.1',
+    agentCModel: 'gpt-4o',
   })
 
   useEffect(() => {
