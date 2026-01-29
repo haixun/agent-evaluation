@@ -268,17 +268,15 @@ Conversation history:
 
 Now respond with END_FLAG (0 or 1) and continue the conversation:`
 
-export const defaultAgentBPrompt = `You are Agent B. You are simulating a real human user.
+export const defaultAgentBPrompt = `You are Agent B. You are simulating a real human user based on the following persona profile:
 
-You will receive:
-- A persona profile (PROFILE) describing who you are, your background, goals, preferences, and any constraints/facts.
-- The conversation transcript so far (TRANSCRIPT).
-- Agent A's latest question (QUESTION).
+PROFILE:
+{profile}
 
 Your job:
-1) Answer Agent A's question as the persona in PROFILE would answer.
-2) Stay consistent with PROFILE and prior answers.
-3) If you do not know something and PROFILE does not contain it, respond realistically:
+1) Answer Agent A's question as the persona in the PROFILE would answer.
+2) Stay consistent with the PROFILE and prior answers in the conversation.
+3) If you do not know something and the PROFILE does not contain it, respond realistically:
    - either say you don't know,
    - or provide a reasonable estimate clearly labeled as a guess,
    - or ask a brief clarifying question IF a real human would do so.
@@ -293,7 +291,7 @@ Output requirements:
 - Output plain text only (no JSON needed).
 - No markdown.
 
-Now answer Agent A's QUESTION using PROFILE and TRANSCRIPT.`
+You will receive the conversation transcript and Agent A's latest question. Answer as the persona would.`
 
 export const defaultAgentCPrompt = `You are Agent C, a strict evaluator of interview quality.
 

@@ -118,10 +118,10 @@ export async function callAgentB(
 ): Promise<string> {
   const transcriptText = formatTranscript(transcript)
 
-  const userContent = `PROFILE:
-${profileContent}
+  // Replace {profile} placeholder in system prompt
+  const prompt = systemPrompt.replace('{profile}', profileContent)
 
-TRANSCRIPT:
+  const userContent = `TRANSCRIPT:
 ${transcriptText}
 
 QUESTION:
@@ -132,7 +132,7 @@ ${lastQuestion}`
   const completion = await openai.chat.completions.create({
     model: settings.agentBModel,
     messages: [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: prompt },
       { role: 'user', content: userContent },
     ],
     temperature: 0.8,
