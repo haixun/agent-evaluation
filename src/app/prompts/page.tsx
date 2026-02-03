@@ -328,10 +328,7 @@ export default function PromptsPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-slate-900 truncate">
-                            {prompt.name || `Version ${prompt.id.substring(0, 8)}`}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            by {prompt.author}
+                            {prompt.name ? `${prompt.name} by ${prompt.author}` : `by ${prompt.author}`}
                           </div>
                           <div className="text-xs text-slate-400 mt-1">
                             {new Date(prompt.createdAt).toLocaleString()}

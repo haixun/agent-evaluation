@@ -60,16 +60,16 @@ export interface Run {
   initialQuestion: string
   taskTopic?: string // Topic for the conversation
   agentAPromptVersionId: string
-  agentAPromptName?: string    // Snapshot of prompt name at run time
-  agentAPromptAuthor?: string  // Snapshot of prompt author at run time
+  agentAPromptName?: string      // Snapshot of prompt name at run time (e.g., "v1.30")
+  agentAPromptAuthor?: string    // Snapshot of prompt author at run time
   agentBPromptVersionId?: string
-  agentBPromptName?: string    // Snapshot of prompt name at run time
-  agentBPromptAuthor?: string  // Snapshot of prompt author at run time
+  agentBPromptName?: string      // Snapshot of prompt name at run time (e.g., "v1.30")
+  agentBPromptAuthor?: string    // Snapshot of prompt author at run time
   agentCPromptVersionId: string
-  agentCPromptName?: string    // Snapshot of prompt name at run time
-  agentCPromptAuthor?: string  // Snapshot of prompt author at run time
+  agentCPromptName?: string      // Snapshot of prompt name at run time (e.g., "v1.30")
+  agentCPromptAuthor?: string    // Snapshot of prompt author at run time
   agentBProfileId?: string
-  agentBProfileName?: string   // Snapshot of profile name at run time
+  agentBProfileName?: string     // Snapshot of profile name at run time
   transcript: TranscriptEntry[]
   evaluation?: Evaluation
   turnCount: number
@@ -84,7 +84,7 @@ export interface Prompt {
   content: string
   createdAt: string
   isActive: boolean
-  name?: string      // Version name
+  name?: string      // Version name (e.g., "v1.30")
   author: string     // Author of this version
 }
 

@@ -283,15 +283,11 @@ export default function HistoryPage() {
                                   </div>
                                   <div className="ml-4 space-y-0.5">
                                     <div className="text-sm font-medium text-slate-900">
-                                      {run.agentAPromptName || run.agentAPromptVersionId}
-                                    </div>
-                                    {run.agentAPromptAuthor && (
-                                      <div className="text-xs text-slate-500">
-                                        by {run.agentAPromptAuthor}
-                                      </div>
-                                    )}
-                                    <div className="text-xs text-slate-400 font-mono">
-                                      ID: {run.agentAPromptVersionId.substring(0, 8)}
+                                      {run.agentAPromptName && run.agentAPromptAuthor
+                                        ? `${run.agentAPromptName} by ${run.agentAPromptAuthor}`
+                                        : run.agentAPromptVersionId === 'uploaded'
+                                        ? 'Uploaded Transcript'
+                                        : 'Default Prompt'}
                                     </div>
                                   </div>
                                 </div>
@@ -305,18 +301,10 @@ export default function HistoryPage() {
                                     </div>
                                     <div className="ml-4 space-y-0.5">
                                       <div className="text-sm font-medium text-slate-900">
-                                        {run.agentBPromptName || run.agentBPromptVersionId || 'Default'}
+                                        {run.agentBPromptName && run.agentBPromptAuthor
+                                          ? `${run.agentBPromptName} by ${run.agentBPromptAuthor}`
+                                          : 'Default Prompt'}
                                       </div>
-                                      {run.agentBPromptAuthor && (
-                                        <div className="text-xs text-slate-500">
-                                          by {run.agentBPromptAuthor}
-                                        </div>
-                                      )}
-                                      {run.agentBPromptVersionId && (
-                                        <div className="text-xs text-slate-400 font-mono">
-                                          ID: {run.agentBPromptVersionId.substring(0, 8)}
-                                        </div>
-                                      )}
                                       {run.agentBProfileName && (
                                         <div className="text-xs text-purple-600 mt-1">
                                           Profile: {run.agentBProfileName}
@@ -334,15 +322,9 @@ export default function HistoryPage() {
                                   </div>
                                   <div className="ml-4 space-y-0.5">
                                     <div className="text-sm font-medium text-slate-900">
-                                      {run.agentCPromptName || run.agentCPromptVersionId}
-                                    </div>
-                                    {run.agentCPromptAuthor && (
-                                      <div className="text-xs text-slate-500">
-                                        by {run.agentCPromptAuthor}
-                                      </div>
-                                    )}
-                                    <div className="text-xs text-slate-400 font-mono">
-                                      ID: {run.agentCPromptVersionId.substring(0, 8)}
+                                      {run.agentCPromptName && run.agentCPromptAuthor
+                                        ? `${run.agentCPromptName} by ${run.agentCPromptAuthor}`
+                                        : 'Default Prompt'}
                                     </div>
                                   </div>
                                 </div>
