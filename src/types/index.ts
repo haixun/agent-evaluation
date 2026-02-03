@@ -60,9 +60,16 @@ export interface Run {
   initialQuestion: string
   taskTopic?: string // Topic for the conversation
   agentAPromptVersionId: string
+  agentAPromptName?: string    // Snapshot of prompt name at run time
+  agentAPromptAuthor?: string  // Snapshot of prompt author at run time
   agentBPromptVersionId?: string
+  agentBPromptName?: string    // Snapshot of prompt name at run time
+  agentBPromptAuthor?: string  // Snapshot of prompt author at run time
   agentCPromptVersionId: string
+  agentCPromptName?: string    // Snapshot of prompt name at run time
+  agentCPromptAuthor?: string  // Snapshot of prompt author at run time
   agentBProfileId?: string
+  agentBProfileName?: string   // Snapshot of profile name at run time
   transcript: TranscriptEntry[]
   evaluation?: Evaluation
   turnCount: number

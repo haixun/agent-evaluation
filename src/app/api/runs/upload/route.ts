@@ -75,7 +75,10 @@ export async function POST(request: NextRequest) {
       initialQuestion,
       taskTopic: taskTopic?.trim() || undefined,
       agentAPromptVersionId: 'uploaded', // No agent A prompt used
+      agentAPromptName: 'Uploaded Transcript',
       agentCPromptVersionId: agentCPrompt?.id || 'default',
+      agentCPromptName: agentCPrompt?.name,
+      agentCPromptAuthor: agentCPrompt?.author,
       transcript: normalizedTranscript,
       evaluation,
       turnCount: normalizedTranscript.length,

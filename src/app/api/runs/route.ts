@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { nanoid } from 'nanoid'
 import { saveRun, listRuns, getRun, deleteRun } from '@/lib/storage'
-import { getActivePrompt } from '@/lib/storage'
+import { getActivePrompt, getProfile } from '@/lib/storage'
 import { defaultAgentAPrompt, defaultAgentBPrompt, defaultAgentCPrompt } from '@/lib/defaultPrompts'
 import type { Run, CreateRunRequest } from '@/types'
 import { MAX_TURNS } from '@/types'
@@ -66,6 +66,15 @@ export async function POST(request: NextRequest) {
     const agentBPrompt = mode === 'simulation' ? await getActivePrompt('agentB') : null
     const agentCPrompt = await getActivePrompt('agentC')
 
+    // Get profile name if provided
+    let profileName: string | undefined
+    if (profileId && profileId !== 'default') {
+      const profile = await getProfile(profileId)
+      profileName = profile?.name
+    } else if (profileId === 'default') {
+      profileName = 'Default Profile'
+    }
+
     const run: Run = {
       runId: nanoid(),
       mode,
@@ -74,9 +83,16 @@ export async function POST(request: NextRequest) {
       initialQuestion,
       taskTopic,
       agentAPromptVersionId: agentAPrompt?.id || 'default',
+      agentAPromptName: agentAPrompt?.name,
+      agentAPromptAuthor: agentAPrompt?.author,
       agentBPromptVersionId: mode === 'simulation' ? (agentBPrompt?.id || 'default') : undefined,
+      agentBPromptName: mode === 'simulation' ? agentBPrompt?.name : undefined,
+      agentBPromptAuthor: mode === 'simulation' ? agentBPrompt?.author : undefined,
       agentCPromptVersionId: agentCPrompt?.id || 'default',
+      agentCPromptName: agentCPrompt?.name,
+      agentCPromptAuthor: agentCPrompt?.author,
       agentBProfileId: profileId,
+      agentBProfileName: profileName,
       transcript: [],
       turnCount: 0,
       maxTurns: mode === 'simulation' ? (maxTurns || MAX_TURNS) : undefined,

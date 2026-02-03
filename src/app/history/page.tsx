@@ -8,10 +8,23 @@ export default function HistoryPage() {
   const [runs, setRuns] = useState<Run[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchRuns()
   }, [])
+
+  const toggleRow = (runId: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(runId)) {
+        newSet.delete(runId)
+      } else {
+        newSet.add(runId)
+      }
+      return newSet
+    })
+  }
 
   async function fetchRuns() {
     try {
@@ -150,90 +163,197 @@ export default function HistoryPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
-                {runs.map((run) => (
-                  <tr key={run.runId} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-slate-900">
-                        {new Date(run.createdAt).toLocaleDateString()}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {new Date(run.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`badge ${
-                          run.mode === 'human' ? 'badge-primary' :
-                          run.mode === 'simulation' ? 'badge-purple' :
-                          'bg-emerald-100 text-emerald-800'
-                        }`}
-                      >
-                        {run.mode === 'human' ? 'Human' : run.mode === 'simulation' ? 'Simulation' : 'Transcript'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div
-                        className="text-sm text-slate-700 truncate max-w-xs"
-                        title={run.initialQuestion}
-                      >
-                        {run.initialQuestion}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`badge ${
-                          run.status === 'completed'
-                            ? 'badge-primary'
-                            : run.status === 'error'
-                            ? 'badge-danger'
-                            : 'badge-warning'
-                        }`}
-                      >
-                        {run.status === 'completed' ? 'Completed' : run.status === 'error' ? 'Error' : 'In Progress'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {run.evaluation ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-bold text-slate-900">
-                            {run.evaluation.overallScore}
-                          </span>
-                          <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
-                              style={{ width: `${run.evaluation.overallScore}%` }}
-                            />
+                {runs.map((run) => {
+                  const isExpanded = expandedRows.has(run.runId)
+                  return (
+                    <>
+                      <tr key={run.runId} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-slate-900">
+                            {new Date(run.createdAt).toLocaleDateString()}
                           </div>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400">-</span>
+                          <div className="text-xs text-slate-500">
+                            {new Date(run.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`badge ${
+                              run.mode === 'human' ? 'badge-primary' :
+                              run.mode === 'simulation' ? 'badge-purple' :
+                              'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
+                            {run.mode === 'human' ? 'Human' : run.mode === 'simulation' ? 'Simulation' : 'Transcript'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div
+                            className="text-sm text-slate-700 truncate max-w-xs"
+                            title={run.initialQuestion}
+                          >
+                            {run.initialQuestion}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`badge ${
+                              run.status === 'completed'
+                                ? 'badge-primary'
+                                : run.status === 'error'
+                                ? 'badge-danger'
+                                : 'badge-warning'
+                            }`}
+                          >
+                            {run.status === 'completed' ? 'Completed' : run.status === 'error' ? 'Error' : 'In Progress'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {run.evaluation ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg font-bold text-slate-900">
+                                {run.evaluation.overallScore}
+                              </span>
+                              <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                                  style={{ width: `${run.evaluation.overallScore}%` }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => toggleRow(run.runId)}
+                              className="btn-ghost text-xs py-1.5 px-3"
+                              title="Show prompt versions"
+                            >
+                              <svg
+                                className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                              Info
+                            </button>
+                            <Link
+                              href={`/runs/${run.runId}`}
+                              className="btn-ghost text-xs py-1.5 px-3"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              View
+                            </Link>
+                            <button
+                              onClick={() => handleDeleteRun(run.runId)}
+                              className="btn-ghost text-xs py-1.5 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr key={`${run.runId}-details`} className="bg-slate-50">
+                          <td colSpan={6} className="px-6 py-4">
+                            <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
+                              <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                                <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Prompt Versions Used
+                              </h4>
+                              <div className="grid md:grid-cols-3 gap-4">
+                                {/* Agent A */}
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Agent A (Interviewer)</span>
+                                  </div>
+                                  <div className="ml-4 space-y-0.5">
+                                    <div className="text-sm font-medium text-slate-900">
+                                      {run.agentAPromptName || run.agentAPromptVersionId}
+                                    </div>
+                                    {run.agentAPromptAuthor && (
+                                      <div className="text-xs text-slate-500">
+                                        by {run.agentAPromptAuthor}
+                                      </div>
+                                    )}
+                                    <div className="text-xs text-slate-400 font-mono">
+                                      ID: {run.agentAPromptVersionId.substring(0, 8)}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Agent B */}
+                                {run.mode === 'simulation' && (
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                                      <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Agent B (Persona)</span>
+                                    </div>
+                                    <div className="ml-4 space-y-0.5">
+                                      <div className="text-sm font-medium text-slate-900">
+                                        {run.agentBPromptName || run.agentBPromptVersionId || 'Default'}
+                                      </div>
+                                      {run.agentBPromptAuthor && (
+                                        <div className="text-xs text-slate-500">
+                                          by {run.agentBPromptAuthor}
+                                        </div>
+                                      )}
+                                      {run.agentBPromptVersionId && (
+                                        <div className="text-xs text-slate-400 font-mono">
+                                          ID: {run.agentBPromptVersionId.substring(0, 8)}
+                                        </div>
+                                      )}
+                                      {run.agentBProfileName && (
+                                        <div className="text-xs text-purple-600 mt-1">
+                                          Profile: {run.agentBProfileName}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Agent C */}
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                    <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Agent C (Evaluator)</span>
+                                  </div>
+                                  <div className="ml-4 space-y-0.5">
+                                    <div className="text-sm font-medium text-slate-900">
+                                      {run.agentCPromptName || run.agentCPromptVersionId}
+                                    </div>
+                                    {run.agentCPromptAuthor && (
+                                      <div className="text-xs text-slate-500">
+                                        by {run.agentCPromptAuthor}
+                                      </div>
+                                    )}
+                                    <div className="text-xs text-slate-400 font-mono">
+                                      ID: {run.agentCPromptVersionId.substring(0, 8)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link
-                          href={`/runs/${run.runId}`}
-                          className="btn-ghost text-xs py-1.5 px-3"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                          View
-                        </Link>
-                        <button
-                          onClick={() => handleDeleteRun(run.runId)}
-                          className="btn-ghost text-xs py-1.5 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                    </>
+                  )
+                })}
               </tbody>
             </table>
           </div>
