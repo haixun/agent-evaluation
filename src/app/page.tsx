@@ -88,6 +88,8 @@ export default function HomePage() {
     agentAModel: 'gpt-5.1',
     agentBModel: 'gpt-4o-mini',
     agentCModel: 'gpt-5.1',
+    scoringFactors: [],
+    outputOptions: [],
   })
 
   useEffect(() => {

@@ -47,12 +47,6 @@ export default function RootLayout({
                   History
                 </Link>
                 <Link
-                  href="/prompts"
-                  className="px-4 py-2 text-sm font-medium text-indigo-100 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  Prompts
-                </Link>
-                <Link
                   href="/settings"
                   className="px-4 py-2 text-sm font-medium text-indigo-100 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                 >

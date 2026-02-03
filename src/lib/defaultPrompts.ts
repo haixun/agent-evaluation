@@ -302,18 +302,16 @@ You will receive a full transcript of a conversation where:
 Your task:
 Evaluate Agent A's follow-up questioning quality and overall interview effectiveness.
 
+INITIAL QUESTION:
+{initial_question}
+
+TRANSCRIPT:
+{transcript}
+
 Scoring factors to evaluate:
 {scoring_factors}
 
-For each factor above, provide a score within the specified range. Explain your reasoning:
-
-- **relevance**: Were follow-ups on-topic and goal-directed?
-- **coverage**: Did Agent A gather the key missing info?
-- **clarity**: Were questions specific and easy to answer?
-- **efficiency**: Did Agent A minimize unnecessary turns?
-- **redundancy**: Did Agent A avoid repeating itself?
-- **reasoning**: Did Agent A sequence questions logically and react to answers?
-- **tone**: Was the tone appropriate/helpful?
+For each factor above, provide a score within the specified range based on the description provided.
 
 Overall scoring guidance:
 - 90–100: excellent; highly targeted follow-ups, complete coverage, minimal friction
@@ -321,18 +319,10 @@ Overall scoring guidance:
 - 50–69: mixed; noticeable gaps, unclear questions, or poor prioritization
 - 0–49: poor; irrelevant, repetitive, or fails to gather needed info
 
-Also evaluate:
-- **stopTiming**: "too early" if major unknowns remain when Agent A stopped, "too late" if Agent A kept asking after sufficient info was gathered, "appropriate" otherwise
-- **strengths**: List key strengths observed
-- **weaknesses**: List key weaknesses observed
-- **actionableSuggestions**: Provide 3-5 concrete suggestions for improvement
-- **evidence**: Include 3-8 specific examples from the transcript with quotes (<=25 words), notes explaining why they matter, and which factor category they relate to
+Output requirements:
+{output_requirements}
 
-Be fair: judge based only on what was in the transcript and the initial question.
-
-Input you will receive:
-- INITIAL_QUESTION
-- TRANSCRIPT`
+Be fair: judge based only on what was in the transcript and the initial question.`
 
 export const defaultProfile = `{
   "name": "Dominic Penaloza",

@@ -199,24 +199,132 @@ const defaultSettings: Settings = {
   agentBModel: 'gpt-4o-mini',
   agentCModel: 'gpt-4o',
   scoringFactors: [
-    { name: 'relevance', label: 'Relevance', type: 'score', range: [0, 100] },
-    { name: 'coverage', label: 'Coverage', type: 'score', range: [0, 100] },
-    { name: 'clarity', label: 'Clarity', type: 'score', range: [0, 100] },
-    { name: 'efficiency', label: 'Efficiency', type: 'score', range: [0, 100] },
-    { name: 'redundancy', label: 'Redundancy', type: 'score', range: [0, 100] },
-    { name: 'reasoning', label: 'Reasoning', type: 'score', range: [0, 100] },
-    { name: 'tone', label: 'Tone', type: 'score', range: [0, 100] },
+    {
+      name: 'relevance',
+      label: 'Relevance',
+      type: 'score',
+      range: [0, 100],
+      description: 'Were follow-ups on-topic and goal-directed?'
+    },
+    {
+      name: 'coverage',
+      label: 'Coverage',
+      type: 'score',
+      range: [0, 100],
+      description: 'Did Agent A gather the key missing info?'
+    },
+    {
+      name: 'clarity',
+      label: 'Clarity',
+      type: 'score',
+      range: [0, 100],
+      description: 'Were questions specific and easy to answer?'
+    },
+    {
+      name: 'efficiency',
+      label: 'Efficiency',
+      type: 'score',
+      range: [0, 100],
+      description: 'Did Agent A minimize unnecessary turns?'
+    },
+    {
+      name: 'redundancy',
+      label: 'Redundancy',
+      type: 'score',
+      range: [0, 100],
+      description: 'Did Agent A avoid repeating itself?'
+    },
+    {
+      name: 'reasoning',
+      label: 'Reasoning',
+      type: 'score',
+      range: [0, 100],
+      description: 'Did Agent A sequence questions logically and react to answers?'
+    },
+    {
+      name: 'tone',
+      label: 'Tone',
+      type: 'score',
+      range: [0, 100],
+      description: 'Was the tone appropriate/helpful?'
+    },
   ],
-  includeOverallScore: true,
-  includeStrengths: true,
-  includeWeaknesses: true,
-  includeSuggestions: true,
+  outputOptions: [
+    {
+      name: 'overallScore',
+      label: 'Overall Score',
+      description: 'Provide an overall score (0-100) summarizing the interview quality',
+      type: 'number',
+      enabled: true
+    },
+    {
+      name: 'strengths',
+      label: 'Strengths',
+      description: 'List key strengths observed in the interview',
+      type: 'array',
+      itemType: 'string',
+      enabled: true
+    },
+    {
+      name: 'weaknesses',
+      label: 'Weaknesses',
+      description: 'List key weaknesses or areas for improvement',
+      type: 'array',
+      itemType: 'string',
+      enabled: true
+    },
+    {
+      name: 'actionableSuggestions',
+      label: 'Actionable Suggestions',
+      description: 'Provide 3-5 concrete suggestions for improvement',
+      type: 'array',
+      itemType: 'string',
+      enabled: true
+    },
+    {
+      name: 'stopTiming',
+      label: 'Stop Timing',
+      description: 'Evaluate if the interview ended at the right time: "too early" if major unknowns remain, "too late" if continued after sufficient info, "appropriate" otherwise',
+      type: 'string',
+      enabled: true
+    },
+    {
+      name: 'evidence',
+      label: 'Evidence',
+      description: 'Include 3-8 specific examples from the transcript with quotes (<=25 words), notes explaining why they matter, and which factor category they relate to',
+      type: 'array',
+      itemType: 'object',
+      enabled: true
+    }
+  ]
 }
 
 async function localGetSettings(): Promise<Settings> {
   try {
     const data = await fs.readFile(SETTINGS_FILE, 'utf-8')
     const parsed = JSON.parse(data)
+
+    // Migrate old boolean flags to outputOptions if needed
+    if (!parsed.outputOptions && (
+      parsed.includeOverallScore !== undefined ||
+      parsed.includeStrengths !== undefined ||
+      parsed.includeWeaknesses !== undefined ||
+      parsed.includeSuggestions !== undefined
+    )) {
+      parsed.outputOptions = defaultSettings.outputOptions.map(opt => {
+        if (opt.name === 'overallScore') return { ...opt, enabled: parsed.includeOverallScore ?? true }
+        if (opt.name === 'strengths') return { ...opt, enabled: parsed.includeStrengths ?? true }
+        if (opt.name === 'weaknesses') return { ...opt, enabled: parsed.includeWeaknesses ?? true }
+        if (opt.name === 'actionableSuggestions') return { ...opt, enabled: parsed.includeSuggestions ?? true }
+        return opt
+      })
+      // Remove old flags
+      delete parsed.includeOverallScore
+      delete parsed.includeStrengths
+      delete parsed.includeWeaknesses
+      delete parsed.includeSuggestions
+    }
+
     // Merge with defaults to handle missing fields
     return { ...defaultSettings, ...parsed }
   } catch {

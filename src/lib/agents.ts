@@ -152,7 +152,7 @@ function generateEvaluationSchema(settings: Settings) {
   for (const factor of settings.scoringFactors) {
     subscoreProperties[factor.name] = {
       type: 'number',
-      description: `${factor.label} score (${factor.range[0]}-${factor.range[1]})`
+      description: factor.description || `${factor.label} score (${factor.range[0]}-${factor.range[1]})`
     }
     subscoreRequired.push(factor.name)
   }
@@ -160,16 +160,7 @@ function generateEvaluationSchema(settings: Settings) {
   const properties: Record<string, any> = {}
   const required: string[] = []
 
-  // Add overall score if enabled
-  if (settings.includeOverallScore) {
-    properties.overallScore = {
-      type: 'number',
-      description: 'Overall score'
-    }
-    required.push('overallScore')
-  }
-
-  // Add subscores
+  // Always include subscores
   properties.subscores = {
     type: 'object',
     properties: subscoreProperties,
@@ -178,57 +169,60 @@ function generateEvaluationSchema(settings: Settings) {
   }
   required.push('subscores')
 
-  // Add optional sections
-  if (settings.includeStrengths) {
-    properties.strengths = {
-      type: 'array',
-      items: { type: 'string' },
-      description: 'List of strengths observed'
+  // Add enabled output options dynamically
+  for (const option of settings.outputOptions) {
+    if (!option.enabled) continue
+
+    if (option.name === 'overallScore') {
+      properties.overallScore = {
+        type: 'number',
+        description: option.description
+      }
+      required.push('overallScore')
+    } else if (option.name === 'stopTiming') {
+      properties.stopTiming = {
+        type: 'string',
+        enum: ['too early', 'appropriate', 'too late'],
+        description: option.description
+      }
+      required.push('stopTiming')
+    } else if (option.name === 'evidence') {
+      properties.evidence = {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            quote: { type: 'string', description: 'Short excerpt from transcript' },
+            note: { type: 'string', description: 'Why this supports the evaluation' },
+            category: { type: 'string', description: 'One of the subscore categories' }
+          },
+          required: ['quote', 'note', 'category'],
+          additionalProperties: false
+        },
+        description: option.description
+      }
+      required.push('evidence')
+    } else if (option.type === 'array') {
+      properties[option.name] = {
+        type: 'array',
+        items: { type: option.itemType || 'string' },
+        description: option.description
+      }
+      required.push(option.name)
+    } else if (option.type === 'number') {
+      properties[option.name] = {
+        type: 'number',
+        description: option.description
+      }
+      required.push(option.name)
+    } else if (option.type === 'string') {
+      properties[option.name] = {
+        type: 'string',
+        description: option.description
+      }
+      required.push(option.name)
     }
-    required.push('strengths')
   }
-
-  if (settings.includeWeaknesses) {
-    properties.weaknesses = {
-      type: 'array',
-      items: { type: 'string' },
-      description: 'List of weaknesses observed'
-    }
-    required.push('weaknesses')
-  }
-
-  if (settings.includeSuggestions) {
-    properties.actionableSuggestions = {
-      type: 'array',
-      items: { type: 'string' },
-      description: 'List of actionable suggestions for improvement'
-    }
-    required.push('actionableSuggestions')
-  }
-
-  // Always include stopTiming and evidence for compatibility
-  properties.stopTiming = {
-    type: 'string',
-    enum: ['too early', 'appropriate', 'too late'],
-    description: 'Whether the interview ended at the right time'
-  }
-  required.push('stopTiming')
-
-  properties.evidence = {
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        quote: { type: 'string', description: 'Short excerpt from transcript' },
-        note: { type: 'string', description: 'Why this supports the evaluation' },
-        category: { type: 'string', description: 'One of the subscore categories' }
-      },
-      required: ['quote', 'note', 'category'],
-      additionalProperties: false
-    },
-    description: 'Evidence supporting the evaluation'
-  }
-  required.push('evidence')
 
   return {
     type: 'object',
@@ -246,18 +240,29 @@ export async function callAgentC(
   const transcriptText = formatTranscript(transcript)
   const settings = await getSettings()
 
-  // Replace {scoring_factors} placeholder with factor list
+  // Replace all placeholders in the prompt
   const factorsList = settings.scoringFactors
-    .map(f => `- ${f.name}: ${f.label} (${f.range[0]}-${f.range[1]})`)
+    .map(f => {
+      const range = `(${f.range[0]}-${f.range[1]})`
+      const desc = f.description ? ` - ${f.description}` : ''
+      return `- **${f.name}** (${f.label} ${range})${desc}`
+    })
     .join('\n')
 
-  const processedPrompt = systemPrompt.replace('{scoring_factors}', factorsList)
+  // Build output requirements section from enabled output options
+  const outputRequirements = settings.outputOptions
+    .filter(opt => opt.enabled)
+    .map(opt => `- **${opt.name}**: ${opt.description}`)
+    .join('\n')
 
-  const userContent = `INITIAL_QUESTION:
-${initialQuestion}
+  const processedPrompt = systemPrompt
+    .replace('{initial_question}', initialQuestion)
+    .replace('{transcript}', transcriptText)
+    .replace('{scoring_factors}', factorsList)
+    .replace('{output_requirements}', outputRequirements)
 
-TRANSCRIPT:
-${transcriptText}`
+  // User message is now just a trigger for evaluation
+  const userContent = `Please evaluate this conversation based on the criteria above.`
 
   const tokenParams = getTokenParams(settings.agentCModel, 4000)
 

@@ -157,6 +157,17 @@ export interface ScoringFactor {
   label: string          // e.g., "Relevance" (for display)
   type: 'score'          // extensible for future types
   range: [number, number] // e.g., [0, 100]
+  description?: string   // e.g., "Were follow-ups on-topic and goal-directed?"
+}
+
+// Evaluation Output Option
+export interface EvaluationOutputOption {
+  name: string                    // e.g., "strengths", "overallScore"
+  label: string                   // e.g., "Strengths", "Overall Score"
+  description: string             // e.g., "List key strengths observed"
+  type: 'number' | 'string' | 'array' | 'object'  // data type for schema
+  itemType?: 'string' | 'object'  // for arrays, what type of items
+  enabled: boolean                // whether to include in evaluation
 }
 
 // Settings
@@ -166,8 +177,5 @@ export interface Settings {
   agentCModel: LLMModel
 
   scoringFactors: ScoringFactor[]
-  includeOverallScore: boolean
-  includeStrengths: boolean
-  includeWeaknesses: boolean
-  includeSuggestions: boolean
+  outputOptions: EvaluationOutputOption[]
 }
