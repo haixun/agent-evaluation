@@ -166,6 +166,7 @@ ${transcriptText}`
       { role: 'user', content: userContent },
     ],
     temperature: 0.3,
+    response_format: { type: 'json_object' },
     ...tokenParams,
   })
 
