@@ -158,7 +158,7 @@ TRANSCRIPT:
 ${transcriptText}`
 
   const settings = await getModelSettings()
-  const tokenParams = getTokenParams(settings.agentCModel, 2000)
+  const tokenParams = getTokenParams(settings.agentCModel, 4000)
   const completion = await openai.chat.completions.create({
     model: settings.agentCModel,
     messages: [
