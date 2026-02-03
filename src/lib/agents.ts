@@ -1,6 +1,6 @@
 import openai from './openai'
 import { getSettings } from './storage'
-import type { AgentAResponse, Evaluation, TranscriptEntry } from '@/types'
+import type { AgentAResponse, Evaluation, TranscriptEntry, Settings } from '@/types'
 
 // Cache for settings to avoid repeated file reads
 let settingsCache: { agentAModel: string; agentBModel: string; agentCModel: string } | null = null
@@ -144,66 +144,99 @@ ${lastQuestion}`
 
 // ============ AGENT C (Evaluator) ============
 
-// Define the evaluation schema for structured outputs
-const evaluationSchema = {
-  type: 'object',
-  properties: {
-    overallScore: {
+function generateEvaluationSchema(settings: Settings) {
+  const subscoreProperties: Record<string, any> = {}
+  const subscoreRequired: string[] = []
+
+  // Build subscore properties from scoring factors
+  for (const factor of settings.scoringFactors) {
+    subscoreProperties[factor.name] = {
       type: 'number',
-      description: 'Overall score from 0 to 100'
-    },
-    subscores: {
-      type: 'object',
-      properties: {
-        relevance: { type: 'number', description: 'Score 0-100' },
-        coverage: { type: 'number', description: 'Score 0-100' },
-        clarity: { type: 'number', description: 'Score 0-100' },
-        efficiency: { type: 'number', description: 'Score 0-100' },
-        redundancy: { type: 'number', description: 'Score 0-100' },
-        reasoning: { type: 'number', description: 'Score 0-100' },
-        tone: { type: 'number', description: 'Score 0-100' }
-      },
-      required: ['relevance', 'coverage', 'clarity', 'efficiency', 'redundancy', 'reasoning', 'tone'],
-      additionalProperties: false
-    },
-    strengths: {
+      description: `${factor.label} score (${factor.range[0]}-${factor.range[1]})`
+    }
+    subscoreRequired.push(factor.name)
+  }
+
+  const properties: Record<string, any> = {}
+  const required: string[] = []
+
+  // Add overall score if enabled
+  if (settings.includeOverallScore) {
+    properties.overallScore = {
+      type: 'number',
+      description: 'Overall score'
+    }
+    required.push('overallScore')
+  }
+
+  // Add subscores
+  properties.subscores = {
+    type: 'object',
+    properties: subscoreProperties,
+    required: subscoreRequired,
+    additionalProperties: false
+  }
+  required.push('subscores')
+
+  // Add optional sections
+  if (settings.includeStrengths) {
+    properties.strengths = {
       type: 'array',
       items: { type: 'string' },
       description: 'List of strengths observed'
-    },
-    weaknesses: {
+    }
+    required.push('strengths')
+  }
+
+  if (settings.includeWeaknesses) {
+    properties.weaknesses = {
       type: 'array',
       items: { type: 'string' },
       description: 'List of weaknesses observed'
-    },
-    actionableSuggestions: {
+    }
+    required.push('weaknesses')
+  }
+
+  if (settings.includeSuggestions) {
+    properties.actionableSuggestions = {
       type: 'array',
       items: { type: 'string' },
       description: 'List of actionable suggestions for improvement'
-    },
-    stopTiming: {
-      type: 'string',
-      enum: ['too early', 'appropriate', 'too late'],
-      description: 'Whether the interview ended at the right time'
-    },
-    evidence: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          quote: { type: 'string', description: 'Short excerpt from transcript' },
-          note: { type: 'string', description: 'Why this supports the evaluation' },
-          category: { type: 'string', description: 'One of the subscore categories' }
-        },
-        required: ['quote', 'note', 'category'],
-        additionalProperties: false
-      },
-      description: 'Evidence supporting the evaluation with 3-8 items'
     }
-  },
-  required: ['overallScore', 'subscores', 'strengths', 'weaknesses', 'actionableSuggestions', 'stopTiming', 'evidence'],
-  additionalProperties: false
-} as const
+    required.push('actionableSuggestions')
+  }
+
+  // Always include stopTiming and evidence for compatibility
+  properties.stopTiming = {
+    type: 'string',
+    enum: ['too early', 'appropriate', 'too late'],
+    description: 'Whether the interview ended at the right time'
+  }
+  required.push('stopTiming')
+
+  properties.evidence = {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        quote: { type: 'string', description: 'Short excerpt from transcript' },
+        note: { type: 'string', description: 'Why this supports the evaluation' },
+        category: { type: 'string', description: 'One of the subscore categories' }
+      },
+      required: ['quote', 'note', 'category'],
+      additionalProperties: false
+    },
+    description: 'Evidence supporting the evaluation'
+  }
+  required.push('evidence')
+
+  return {
+    type: 'object',
+    properties,
+    required,
+    additionalProperties: false
+  }
+}
 
 export async function callAgentC(
   systemPrompt: string,
@@ -211,6 +244,14 @@ export async function callAgentC(
   transcript: TranscriptEntry[]
 ): Promise<Evaluation> {
   const transcriptText = formatTranscript(transcript)
+  const settings = await getSettings()
+
+  // Replace {scoring_factors} placeholder with factor list
+  const factorsList = settings.scoringFactors
+    .map(f => `- ${f.name}: ${f.label} (${f.range[0]}-${f.range[1]})`)
+    .join('\n')
+
+  const processedPrompt = systemPrompt.replace('{scoring_factors}', factorsList)
 
   const userContent = `INITIAL_QUESTION:
 ${initialQuestion}
@@ -218,14 +259,15 @@ ${initialQuestion}
 TRANSCRIPT:
 ${transcriptText}`
 
-  const settings = await getModelSettings()
   const tokenParams = getTokenParams(settings.agentCModel, 4000)
 
   try {
+    const evaluationSchema = generateEvaluationSchema(settings)
+
     const completion = await openai.chat.completions.create({
       model: settings.agentCModel,
       messages: [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: processedPrompt },
         { role: 'user', content: userContent },
       ],
       temperature: 0.3,
@@ -241,27 +283,36 @@ ${transcriptText}`
     })
 
     const responseText = completion.choices[0]?.message?.content || ''
-    const parsed = JSON.parse(responseText) as Evaluation
+    const parsed = JSON.parse(responseText)
 
-    console.log('[Agent C] Successfully parsed evaluation with overallScore:', parsed.overallScore)
-    return parsed
+    console.log('[Agent C] Successfully parsed evaluation')
+
+    // Convert to Evaluation type with default values for missing fields
+    const evaluation: Evaluation = {
+      overallScore: parsed.overallScore ?? 0,
+      subscores: parsed.subscores ?? {},
+      strengths: parsed.strengths ?? [],
+      weaknesses: parsed.weaknesses ?? [],
+      actionableSuggestions: parsed.actionableSuggestions ?? [],
+      stopTiming: parsed.stopTiming ?? 'appropriate',
+      evidence: parsed.evidence ?? [],
+    }
+
+    return evaluation
 
   } catch (e) {
     console.error('[Agent C] Failed to get evaluation:', e)
     console.error('[Agent C] Model used:', settings.agentCModel)
 
     // Return a default evaluation on failure
+    const defaultSubscores: Record<string, number> = {}
+    for (const factor of settings.scoringFactors) {
+      defaultSubscores[factor.name] = 0
+    }
+
     return {
       overallScore: 0,
-      subscores: {
-        relevance: 0,
-        coverage: 0,
-        clarity: 0,
-        efficiency: 0,
-        redundancy: 0,
-        reasoning: 0,
-        tone: 0,
-      },
+      subscores: defaultSubscores,
       strengths: [],
       weaknesses: ['Evaluation failed to complete'],
       actionableSuggestions: [],

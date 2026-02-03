@@ -18,22 +18,16 @@ export interface AgentAResponse {
   done: boolean
 }
 
-// Evaluation subscores
+// Evaluation subscores - now dynamic based on scoring factors
 export interface EvaluationSubscores {
-  relevance: number
-  coverage: number
-  clarity: number
-  efficiency: number
-  redundancy: number
-  reasoning: number
-  tone: number
+  [key: string]: number  // Dynamic subscores based on configured factors
 }
 
 // Evaluation evidence item
 export interface EvaluationEvidence {
   quote: string
   note: string
-  category: keyof EvaluationSubscores
+  category: string  // References a scoring factor name
 }
 
 // Agent C evaluation result
@@ -157,9 +151,23 @@ export type LLMModel =
   | 'o1-mini'
   | 'o3-mini'
 
+// Scoring Factor
+export interface ScoringFactor {
+  name: string           // e.g., "relevance"
+  label: string          // e.g., "Relevance" (for display)
+  type: 'score'          // extensible for future types
+  range: [number, number] // e.g., [0, 100]
+}
+
 // Settings
 export interface Settings {
   agentAModel: LLMModel
   agentBModel: LLMModel
   agentCModel: LLMModel
+
+  scoringFactors: ScoringFactor[]
+  includeOverallScore: boolean
+  includeStrengths: boolean
+  includeWeaknesses: boolean
+  includeSuggestions: boolean
 }

@@ -302,49 +302,37 @@ You will receive a full transcript of a conversation where:
 Your task:
 Evaluate Agent A's follow-up questioning quality and overall interview effectiveness.
 
-You MUST produce ONLY valid JSON with exactly the following top-level keys:
-- "overallScore" (number, 0 to 100)
-- "subscores" (object with numeric 0 to 100 values for the required categories)
-- "strengths" (array of strings)
-- "weaknesses" (array of strings)
-- "actionableSuggestions" (array of strings)
-- "stopTiming" (string: "too early" | "appropriate" | "too late")
-- "evidence" (array of objects)
+Scoring factors to evaluate:
+{scoring_factors}
 
-Required subscores categories (all must be present):
-- "relevance" (Were follow-ups on-topic and goal-directed?)
-- "coverage" (Did Agent A gather the key missing info?)
-- "clarity" (Were questions specific and easy to answer?)
-- "efficiency" (Did Agent A minimize unnecessary turns?)
-- "redundancy" (Did Agent A avoid repeating itself?)
-- "reasoning" (Did Agent A sequence questions logically and react to answers?)
-- "tone" (Was the tone appropriate/helpful?)
+For each factor above, provide a score within the specified range. Explain your reasoning:
 
-Evidence requirements:
-- "evidence" must include 3–8 items.
-- Each evidence item must be an object with:
-  - "quote" (string: short excerpt from the transcript, <= 25 words)
-  - "note" (string: why this supports your evaluation)
-  - "category" (one of the subscores category names)
+- **relevance**: Were follow-ups on-topic and goal-directed?
+- **coverage**: Did Agent A gather the key missing info?
+- **clarity**: Were questions specific and easy to answer?
+- **efficiency**: Did Agent A minimize unnecessary turns?
+- **redundancy**: Did Agent A avoid repeating itself?
+- **reasoning**: Did Agent A sequence questions logically and react to answers?
+- **tone**: Was the tone appropriate/helpful?
 
-Scoring guidance:
+Overall scoring guidance:
 - 90–100: excellent; highly targeted follow-ups, complete coverage, minimal friction
 - 70–89: good; minor gaps or inefficiencies
 - 50–69: mixed; noticeable gaps, unclear questions, or poor prioritization
 - 0–49: poor; irrelevant, repetitive, or fails to gather needed info
 
-Stop timing:
-- "too early" if major unknowns remain when Agent A stopped
-- "too late" if Agent A kept asking after sufficient info was gathered
-- "appropriate" otherwise
+Also evaluate:
+- **stopTiming**: "too early" if major unknowns remain when Agent A stopped, "too late" if Agent A kept asking after sufficient info was gathered, "appropriate" otherwise
+- **strengths**: List key strengths observed
+- **weaknesses**: List key weaknesses observed
+- **actionableSuggestions**: Provide 3-5 concrete suggestions for improvement
+- **evidence**: Include 3-8 specific examples from the transcript with quotes (<=25 words), notes explaining why they matter, and which factor category they relate to
 
 Be fair: judge based only on what was in the transcript and the initial question.
 
 Input you will receive:
 - INITIAL_QUESTION
-- TRANSCRIPT
-
-Now output the JSON evaluation only. No markdown. No extra keys.`
+- TRANSCRIPT`
 
 export const defaultProfile = `{
   "name": "Dominic Penaloza",

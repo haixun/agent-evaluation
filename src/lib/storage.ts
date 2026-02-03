@@ -194,17 +194,34 @@ async function localDeleteProfile(id: string): Promise<void> {
   }
 }
 
+const defaultSettings: Settings = {
+  agentAModel: 'gpt-4o',
+  agentBModel: 'gpt-4o-mini',
+  agentCModel: 'gpt-4o',
+  scoringFactors: [
+    { name: 'relevance', label: 'Relevance', type: 'score', range: [0, 100] },
+    { name: 'coverage', label: 'Coverage', type: 'score', range: [0, 100] },
+    { name: 'clarity', label: 'Clarity', type: 'score', range: [0, 100] },
+    { name: 'efficiency', label: 'Efficiency', type: 'score', range: [0, 100] },
+    { name: 'redundancy', label: 'Redundancy', type: 'score', range: [0, 100] },
+    { name: 'reasoning', label: 'Reasoning', type: 'score', range: [0, 100] },
+    { name: 'tone', label: 'Tone', type: 'score', range: [0, 100] },
+  ],
+  includeOverallScore: true,
+  includeStrengths: true,
+  includeWeaknesses: true,
+  includeSuggestions: true,
+}
+
 async function localGetSettings(): Promise<Settings> {
   try {
     const data = await fs.readFile(SETTINGS_FILE, 'utf-8')
-    return JSON.parse(data)
+    const parsed = JSON.parse(data)
+    // Merge with defaults to handle missing fields
+    return { ...defaultSettings, ...parsed }
   } catch {
     // Return defaults if file doesn't exist
-    return {
-      agentAModel: 'gpt-5.1',
-      agentBModel: 'gpt-4o-mini',
-      agentCModel: 'gpt-5.1',
-    }
+    return defaultSettings
   }
 }
 
@@ -466,28 +483,18 @@ async function blobGetSettings(): Promise<Settings> {
     const { list } = await import('@vercel/blob')
     const { blobs } = await list({ prefix: 'settings.json' })
     if (blobs.length === 0) {
-      return {
-        agentAModel: 'gpt-5.1',
-        agentBModel: 'gpt-4o-mini',
-        agentCModel: 'gpt-5.1',
-      }
+      return defaultSettings
     }
 
     const response = await fetch(blobs[0].url)
     if (!response.ok) {
-      return {
-        agentAModel: 'gpt-5.1',
-        agentBModel: 'gpt-4o-mini',
-        agentCModel: 'gpt-5.1',
-      }
+      return defaultSettings
     }
-    return await response.json()
+    const parsed = await response.json()
+    // Merge with defaults to handle missing fields
+    return { ...defaultSettings, ...parsed }
   } catch {
-    return {
-      agentAModel: 'gpt-5.1',
-      agentBModel: 'gpt-4o-mini',
-      agentCModel: 'gpt-5.1',
-    }
+    return defaultSettings
   }
 }
 
@@ -639,13 +646,11 @@ async function redisGetSettings(): Promise<Settings> {
   const redis = getRedis()
   const data = await redis.get<string>('settings')
   if (!data) {
-    return {
-      agentAModel: 'gpt-5.1',
-      agentBModel: 'gpt-4o-mini',
-      agentCModel: 'gpt-5.1',
-    }
+    return defaultSettings
   }
-  return typeof data === 'string' ? JSON.parse(data) : data
+  const parsed = typeof data === 'string' ? JSON.parse(data) : data
+  // Merge with defaults to handle missing fields
+  return { ...defaultSettings, ...parsed }
 }
 
 async function redisSaveSettings(settings: Settings): Promise<void> {
