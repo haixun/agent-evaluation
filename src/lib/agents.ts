@@ -178,6 +178,7 @@ ${transcriptText}`
       .replace(/```\s*/g, '')
       .trim()
 
+    console.log('[Agent C] Attempting to parse response, length:', cleanedText.length)
     const parsed = JSON.parse(cleanedText)
 
     // Validate required fields
@@ -205,8 +206,10 @@ ${transcriptText}`
 
     return evaluation
   } catch (e) {
-    console.error('Failed to parse Agent C response as JSON:', e)
-    console.error('Raw response:', responseText)
+    console.error('[Agent C] Failed to parse response as JSON:', e)
+    console.error('[Agent C] Raw response (first 500 chars):', responseText.substring(0, 500))
+    console.error('[Agent C] Response length:', responseText.length)
+    console.error('[Agent C] Model used:', (await getModelSettings()).agentCModel)
 
     // Return a default evaluation on parse failure
     return {
