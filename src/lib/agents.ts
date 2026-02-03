@@ -155,7 +155,9 @@ export async function callAgentC(
 ${initialQuestion}
 
 TRANSCRIPT:
-${transcriptText}`
+${transcriptText}
+
+Please respond with valid JSON only.`
 
   const settings = await getModelSettings()
   const tokenParams = getTokenParams(settings.agentCModel, 4000)
