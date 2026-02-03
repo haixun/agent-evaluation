@@ -183,6 +183,12 @@ Please respond with valid JSON only.`
 
     console.log('[Agent C] Attempting to parse response, length:', cleanedText.length)
     const parsed = JSON.parse(cleanedText)
+    console.log('[Agent C] Parsed JSON keys:', Object.keys(parsed))
+    console.log('[Agent C] Has overallScore?', 'overallScore' in parsed, 'Value:', parsed.overallScore)
+    console.log('[Agent C] Has subscores?', 'subscores' in parsed, 'Type:', typeof parsed.subscores)
+    if (parsed.subscores) {
+      console.log('[Agent C] Subscores keys:', Object.keys(parsed.subscores))
+    }
 
     // Validate required fields
     const evaluation: Evaluation = {
