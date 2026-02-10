@@ -335,13 +335,13 @@ export default function HomePage() {
   async function handleStartRun() {
     // Handle transcript mode separately
     if (mode === 'transcript') {
-      if (!uploadInitialQuestion.trim()) {
-        setError('Please enter the initial question that started the conversation')
+      if (!uploadedTranscript || uploadedTranscript.length === 0) {
+        setError('Please upload a transcript file to evaluate')
         return
       }
 
-      if (!uploadedTranscript || uploadedTranscript.length === 0) {
-        setError('Please upload a transcript file to evaluate')
+      if (!uploadInitialQuestion.trim()) {
+        setError('Please enter the initial question that started the conversation')
         return
       }
 
@@ -538,6 +538,7 @@ export default function HomePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Initial Question
+                    <span className="text-red-500 font-bold">*</span>
                   </h2>
                 </div>
                 <div className="card-body">
@@ -545,12 +546,20 @@ export default function HomePage() {
                     type="text"
                     value={uploadInitialQuestion}
                     onChange={(e) => setUploadInitialQuestion(e.target.value)}
-                    className="input"
+                    className={`input ${!uploadInitialQuestion.trim() && uploadedTranscript ? 'border-amber-300 bg-amber-50' : ''}`}
                     placeholder="What was the initial question that started the conversation?"
                   />
                   <p className="input-hint mt-2">
-                    Enter the first question Agent A asked to start the conversation.
+                    <span className="font-medium text-emerald-600">Required:</span> Enter the first question Agent A asked to start the conversation.
                   </p>
+                  {!uploadInitialQuestion.trim() && uploadedTranscript && (
+                    <div className="mt-2 text-sm text-amber-600 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Please enter the initial question to continue
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -584,6 +593,7 @@ export default function HomePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     Transcript File
+                    <span className="text-red-500 font-bold">*</span>
                   </h2>
                 </div>
                 <div className="card-body">
@@ -950,13 +960,36 @@ export default function HomePage() {
               <h3 className="text-lg font-semibold text-white mb-2">
                 {mode === 'transcript' ? 'Ready to Evaluate?' : 'Ready to Start?'}
               </h3>
-              <p className="text-indigo-100 text-sm mb-6">
+              <p className="text-indigo-100 text-sm mb-4">
                 {mode === 'human'
                   ? 'You\'ll interact with the interviewer in real-time'
                   : mode === 'simulation'
                   ? 'The simulation will run automatically'
                   : 'Agent C will analyze the transcript'}
               </p>
+              {mode === 'transcript' && (!uploadInitialQuestion.trim() || !uploadedTranscript) && (
+                <div className="mb-4 p-3 bg-white/10 rounded-lg border border-white/20">
+                  <p className="text-xs text-white/90 mb-2 font-semibold">Still needed:</p>
+                  <ul className="text-xs text-white/80 space-y-1 text-left">
+                    {!uploadedTranscript && (
+                      <li className="flex items-center gap-2">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Upload transcript file
+                      </li>
+                    )}
+                    {!uploadInitialQuestion.trim() && (
+                      <li className="flex items-center gap-2">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Enter initial question
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
               <button
                 onClick={handleStartRun}
                 disabled={loading || (mode !== 'transcript' && !getQuestion()) || (mode === 'transcript' && (!uploadInitialQuestion.trim() || !uploadedTranscript))}
